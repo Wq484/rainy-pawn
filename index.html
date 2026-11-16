@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0e14">
+<title>雨天拍賣 · Rainy Pawn & Study</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 24'%3E%3Cpath d='M10 1 C 13 7 17 11 17 16 A 7 7 0 0 1 3 16 C 3 11 7 7 10 1 Z' fill='%237fa7c9'/%3E%3C/svg%3E">
+<style>
+:root{
+  --ink:#0b0e14;
+  --ink-2:#10141d;
+  --wall-1:#0e1420;
+  --wall-2:#0a0d15;
+  --floor:#1a1410;
+  --floor-line:#241b13;
+  --paper:#e8e0d2;
+  --paper-dim:#b9b0a0;
+  --lamp:#f7a83b;
+  --lamp-soft:rgba(247,168,59,.14);
+  --rain:#7fa7c9;
+  --dawn:0;
+  --ui-font:-apple-system,BlinkMacSystemFont,"PingFang TC","PingFang SC","Microsoft JhengHei","Noto Sans TC","Noto Sans SC",sans-serif;
+  --book-font:Georgia,"Times New Roman","Noto Serif TC","Noto Serif SC","PMingLiU",serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--ink);
+  color:var(--paper);
+  font-family:var(--ui-font);
+  font-size:16px;
+  overflow:hidden;
+  -webkit-tap-highlight-color:transparent;
+}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
+  outline:2px solid var(--lamp);outline-offset:2px;border-radius:4px;
+}
+
+/* ============ 房間 ============ */
+.room{position:relative;width:100vw;height:100dvh;overflow:hidden;
+  background:
+    radial-gradient(120% 90% at 70% 30%, rgba(247,168,59,calc(.05 + var(--dawn)*.02)), transparent 60%),
+    linear-gradient(180deg, var(--wall-1) 0%, var(--wall-2) 78%, var(--floor) 78.2%, #120d09 100%);
+}
+.room::after{ /* 地板透視線 */
+  content:"";position:absolute;left:0;right:0;top:78%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--floor-line) 20%,var(--floor-line) 80%,transparent);
+}
+
+/* ---- 窗 ---- */
+.window{
+  position:absolute;left:6%;top:9%;width:40%;height:56%;
+  border:10px solid #241c14;border-radius:6px;
+  box-shadow:0 0 0 2px #0a0c10, inset 0 0 60px rgba(0,0,0,.55), 0 18px 50px rgba(0,0,0,.5);
+  overflow:hidden;background:#060a12;
+}
+.window canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.window .mullion-v,.window .mullion-h{position:absolute;background:#241c14;z-index:3}
+.window .mullion-v{left:50%;top:0;bottom:0;width:8px;margin-left:-4px}
+.window .mullion-h{top:50%;left:0;right:0;height:8px;margin-top:-4px}
+.sill{
+  position:absolute;left:calc(6% - 1.5%);top:calc(9% + 56%);width:43%;height:14px;
+  background:linear-gradient(180deg,#33271a,#1c140d);border-radius:3px;
+  box-shadow:0 6px 14px rgba(0,0,0,.55);z-index:4;
+}
+/* 淋濕的物品（可點當） */
+.wet-item{
+  position:absolute;bottom:100%;width:44px;height:44px;padding:6px;
+  transform:translateY(6px);opacity:0;
+  transition:transform .25s ease-out,opacity .25s ease-out;
+  z-index:5;
+}
+.wet-item.show{transform:translateY(0);opacity:1}
+.wet-item svg{width:100%;height:100%;filter:drop-shadow(0 2px 3px rgba(0,0,0,.6))}
+.wet-item:hover svg{transform:translateY(-3px)}
+.wet-item svg{transition:transform .2s ease-out}
+
+/* ---- 書桌區 ---- */
+.desk{
+  position:absolute;right:22%;top:52%;width:26%;height:20%;
+  z-index:6;
+}
+.desk .top{
+  position:absolute;inset:auto 0 62% 0;height:14%;
+  background:linear-gradient(180deg,#3a2c1d,#241a10);border-radius:4px;
+  box-s

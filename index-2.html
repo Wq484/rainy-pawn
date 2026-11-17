@@ -1583,7 +1583,8 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
       <p><b>聲音</b>：點「雨聲」打開白噪音。聖誕節期間會多一只音樂盒，寫字時還有很輕的鍵盤聲，踩水窪有「啪嚓」。</p>
       <p><b>聚會</b>：點「邀請朋友」，朋友會一個一個收傘進來，靠在一起讀書。他們讀你的書時，會在紙邊留下批注——重新打開那本書就看得見。來的時候偶爾會帶一碟點心，就放在書桌上；點一下吃掉，回一點雨滴。</p>
       <p><b>舊雨書盒</b>：窗下牆上釘著一只對外的小書盒。把裝訂好的書放進去，路過的人——還有蛋捲阿姨——會借走。書會自己回來，回來的時候裡面夾一張蓋著日期章的歸還卡，有時候桌上還會多一碟點心。被借越多次，章蓋得越多。借出去的期間，草稿還在你桌上，隨時能重讀。</p>
-      <p><b>書穴與檢索廳</b>：書架下的小木牌往下走，是書穴——書從四面八方堆上來，牆和地板的界線都消失了，只剩中央一小塊空地、一盞燈、和一個安靜讀書的人影。妳裝訂的書繫著金色書腰，散在空地周圍，點開就能重讀。書堆深處有一道細細的光：走出去要經過一段長長黑黑的通道（點一下可以直接走完），另一頭是檢索廳——左邊是一整面卡片目錄（可以拉開，但卡片上只有日期），右邊是一座資料摩天輪，三節木車廂慢慢轉，載著被朋友批注過、被借走過的書。點車廂讓它停下來，就能翻大家留下的痕跡。回來的路，是同一段通道，方向相反。</p>
+      <p><b>書穴與星軌檢索輪</b>：書架下的小木牌往下走，是書穴——書從四面八方堆上來，牆和地板的界線都消失了，只剩中央一小塊空地、一盞燈、和一個安靜讀書的人影。你裝訂的書繫著金色書腰，散在空地周圍，點開就能重讀。書堆深處有一道細細的光：走出去要經過一段長長黑黑的通道（點一下可以直接走完），另一頭沉在夜海裡——水母和煙火之間，立著一座轉得很慢的星軌檢索輪。十節車廂是十顆星，各自載著一種觀看世界的方法；點一節讓它停下來，就能翻開它載著的檔案卡。左邊的星圖索引，可以只盯著某一顆星看。被朋友批注過、被借走過的書，也會被放上輪子，慢慢轉成公共資料。回來的路，是同一段通道，方向相反。</p>
+      <p><b>設計理念</b>：檢索輪的全名是「真理論辯廳」。每次醒來，它會隨機選一種觀看框架——日心說或地心說，右上角隨時可以切換。日心說說：世界不繞著我轉，但我仍然在其中。地心說說：我站在哪裡，世界就從哪裡開始。兩種說法都對，也都不完整。十顆星載著十個題目——中心、記憶、語言、觀看、生活、衝突、理論、時間、偏離、未知——沒有哪一顆是答案，各自只是一種看法。星圖上沒有唯一的中心，只有暫時停下來的位置；真理也會繞著人轉。</p>
       <p><b>彩虹與陣雨</b>：雨下久了，遠山會慢慢變綠；偶爾雨歇，彩虹會出來一下。陣雨來的時候是踩水時間，把整場水窪踩完有獎勵。</p>
       <p><b>天亮</b>：一直寫，窗外的天色會慢慢泛白。寫到日出，就該睡了。</p>
       <p>書架上的每一本都可以點開重讀，匯出成 <span class="k">.md</span>、<span class="k">Word</span> 或 <span class="k">PDF</span> 帶走（PDF 會打開列印視窗，選「存成 PDF」）。資料存在這個瀏覽器裡（本機儲存，不會同步到其他裝置）。</p>
@@ -1955,10 +1956,10 @@ $("#bb-poster").addEventListener("click",()=>{
 
 /* ---- 蛋捲阿姨的店 ---- */
 const EGGLINES=[
-  "阿姨塞給妳一支蛋捲：讀書辛苦了。",
+  "阿姨塞給你一支蛋捲：讀書辛苦了。",
   "阿姨：今天也有乖乖吃飯嗎？",
   "阿姨多包了一袋，說配熱茶剛好。",
-  "阿姨偷偷多放兩支，叫妳別跟她客氣。",
+  "阿姨偷偷多放兩支，叫你別跟她客氣。",
   "阿姨：這支是剛捲好的，還燙，小心拿。"
 ];
 let eggBusy=false;
@@ -2206,7 +2207,7 @@ $("#cpl-l").innerHTML='<img src="'+CPL_IMG.l+'" alt="">';
 $("#cpl-r").innerHTML='<img src="'+CPL_IMG.r+'" alt="">';
 $("#cpl-t").innerHTML='<img src="'+CPL_IMG.t+'" alt="">';
 $("#win-cat").innerHTML='<img src="'+ITEM_IMG.item_whitecat+'" alt="">';
-const WINCAT_LINES=["窗外的貓不進來。牠只是躲雨。","世界末日那天，貓決定來看看妳。","（白貓隔著玻璃看你。雨先落在牠那邊。）","牠明天不一定來。貓不預約。"];
+const WINCAT_LINES=["窗外的貓不進來。牠只是躲雨。","世界末日那天，貓決定來看看你。","（白貓隔著玻璃看你。雨先落在牠那邊。）","牠明天不一定來。貓不預約。"];
 let winCatIdx=0,winCatTimer=null;
 function winCatVisit(){const el=$("#win-cat");if(!el.hidden)return;el.hidden=false;setTimeout(()=>el.classList.add("on"),40);clearTimeout(winCatTimer);winCatTimer=setTimeout(()=>{el.classList.remove("on");setTimeout(()=>{el.hidden=true},1700)},60000)}
 function winCatRoll(p){if($("#win-cat").hidden&&Math.random()<p)winCatVisit()}
@@ -2667,7 +2668,7 @@ $("#cat").addEventListener("click",()=>{
   const sounds=["（貓看了你一眼）","（貓把尾巴收起來了）","喵。","（貓繼續睡）","（貓在看雨，沒空理你）"];
   toast(sounds[Math.floor(Math.random()*sounds.length)]);
 });
-const HOUSE_LINES=["（小屋的門永遠開著。）","每一根竹筷都記得一雙很耐心的手。","它不怕搬家。它已經跟定妳了。"];
+const HOUSE_LINES=["（小屋的門永遠開著。）","每一根竹筷都記得一雙很耐心的手。","它不怕搬家。它已經跟定你了。"];
 $("#stickhouse").addEventListener("click",()=>{toast(HOUSE_LINES[Math.floor(Math.random()*HOUSE_LINES.length)],3200)});
 
 /* ================= 訪客點心 ================= */
@@ -2790,8 +2791,8 @@ function renderNotes(id){
 
 /* ================= 舊雨書盒（出借） ================= */
 const LIB_READERS=[
-  {name:"阿霧",cards:["雨聲那段，我又回去讀了一次。","妳寫的雨，比窗外的還大。"]},
-  {name:"阿璃",cards:["配著餅乾讀完了，謝謝妳。","這本我讀得很慢，捨不得還。"]},
+  {name:"阿霧",cards:["雨聲那段，我又回去讀了一次。","你寫的雨，比窗外的還大。"]},
+  {name:"阿璃",cards:["配著餅乾讀完了，謝謝你。","這本我讀得很慢，捨不得還。"]},
   {name:"阿澈",cards:["第三章的推論，我還是保留。","借走兩天，想通了一件事。"]},
   {name:"蛋捲阿姨",cards:["阿姨字認得不多，但這本看完了。","配蛋捲正好。下次再借阿姨一本。"]},
   {name:"路過的旅人",cards:["躲雨的時候讀完的。謝謝這個書盒。","從這扇窗借走的雨，比路上的溫柔。","這本跟我坐了兩站火車，現在讓它回家。","護照快蓋滿了，這一站蓋的是雨聲。"]}
@@ -2855,7 +2856,7 @@ function renderLib(){
       act.addEventListener("click",()=>{
         const wasLoan=!!b.loan;b.loan=null;b.listed=false;save();
         renderLib();renderLibShelf();renderShelf();
-        toast(wasLoan?"妳把《"+b.title+"》拿回來了，這次借閱不算數。":"《"+b.title+"》從舊雨書盒下架了。");
+        toast(wasLoan?"你把《"+b.title+"》拿回來了，這次借閱不算數。":"《"+b.title+"》從舊雨書盒下架了。");
       });
     }else{
       act.textContent="放上架";
@@ -2873,7 +2874,7 @@ function renderLib(){
   secT("房間書架 · 未上架 "+unlisted.length+" 本");
   if(!unlisted.length)hint(state.books.length?"全部都放進書盒了。":"先在書桌寫筆記，裝訂成書之後才能放進書盒。");
   unlisted.forEach(b=>mkRow(b,false));
-  hint("借出去的書會自己回來——回來時夾一張蓋日期章的歸還卡。草稿始終在妳桌上，隨時能重讀。");
+  hint("借出去的書會自己回來——回來時夾一張蓋日期章的歸還卡。草稿始終在你桌上，隨時能重讀。");
 }
 /* 借閱循環：同一時間只借出一本 */
 function libTick(){
@@ -2909,7 +2910,7 @@ function libTick(){
   });
 }
 function libLoop(){setTimeout(()=>{libTick();libLoop()},25000)}
-/* 妳不在的時候，到期的書自己回來 */
+/* 你不在的時候，到期的書自己回來 */
 function libSettle(){
   const now=Date.now();let back=[],backBy=[];
   state.books.forEach(b=>{
@@ -2922,7 +2923,7 @@ function libSettle(){
   });
   if(back.length){
     save();renderLibShelf();renderShelf();
-    setTimeout(()=>toast("妳不在的時候，"+back.join("、")+"被還回來了，卡片夾在書裡。",4600),2200);
+    setTimeout(()=>toast("你不在的時候，"+back.join("、")+"被還回來了，卡片夾在書裡。",4600),2200);
     if(Math.random()<0.5){
       const by=backBy[Math.floor(Math.random()*backBy.length)];
       setTimeout(()=>leaveSnack(by),7000);

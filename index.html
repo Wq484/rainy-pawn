@@ -960,6 +960,11 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
   color:var(--paper-dim);border-radius:8px;transition:color .15s,background .15s;
 }
 .panel-head .x:hover{color:var(--paper);background:rgba(232,224,210,.08)}
+.head-undo{min-height:36px;min-width:44px;padding:4px 10px;font-size:12px;letter-spacing:.1em;border-radius:8px;
+  color:var(--paper-dim);border:1px solid rgba(232,224,210,.18);transition:color .15s,border-color .15s}
+.head-undo:hover{color:var(--paper);border-color:rgba(232,224,210,.35)}
+.head-undo:disabled{opacity:.32;pointer-events:none}
+#btn-undo{margin-left:auto}
 
 /* 寫作覆層 */
 .write-body{padding:18px;display:flex;flex-direction:column;gap:12px;flex:1;min-height:0}
@@ -1107,6 +1112,36 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
 .bind-opts .bo-r input{accent-color:#c9a86a}
 .bind-opts .bo-subs{margin:6px 0 0 22px;padding:8px 10px;border-left:2px solid rgba(201,168,106,.45);display:flex;flex-direction:column;gap:4px}
 .bind-opts .bo-subs[hidden]{display:none}
+/* ---- 我的書架（內容管理） ---- */
+.lib-entry{padding:12px 18px 0}
+.lib-entry .btn{width:100%}
+.ms-sec h3{font-size:12px;letter-spacing:.22em;color:rgba(201,168,106,.95);margin:14px 0 8px;font-weight:600}
+.ms-empty{font-size:12px;color:rgba(232,224,210,.38);padding:2px 2px 8px;letter-spacing:.08em}
+.ms-row{border:1px solid rgba(232,224,210,.13);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:rgba(255,255,255,.025)}
+.ms-title{font-size:14px;color:rgba(238,232,220,.95);letter-spacing:.05em}
+.ms-meta{font-size:11px;color:rgba(232,224,210,.55);margin-top:3px;letter-spacing:.05em}
+.ms-excerpt{font-size:12px;color:rgba(232,224,210,.68);margin-top:5px;line-height:1.7;word-break:break-word}
+.ms-tags{margin-top:7px;display:flex;flex-wrap:wrap;gap:5px}
+.ms-tag{font-size:10px;letter-spacing:.12em;padding:2px 8px;border-radius:999px;border:1px solid rgba(232,224,210,.2);color:rgba(232,224,210,.6)}
+.ms-tag.gold{border-color:rgba(201,168,106,.55);color:rgba(201,168,106,.95)}
+.ms-tag.dim{border-style:dashed}
+.ms-acts{margin-top:9px;display:flex;flex-wrap:wrap;gap:6px}
+.ms-acts .btn{padding:6px 12px;font-size:12px;letter-spacing:.08em}
+.ms-set{margin-top:9px;border-top:1px dashed rgba(232,224,210,.16);padding-top:9px}
+.ms-set label{display:flex;align-items:center;gap:7px;font-size:12px;color:rgba(232,224,210,.75);padding:4px 0;cursor:pointer;letter-spacing:.05em}
+.ms-set input{accent-color:#c9a86a}
+.ms-set .ms-subs{margin:4px 0 4px 20px;padding:6px 9px;border-left:2px solid rgba(201,168,106,.45)}
+.ms-set .ms-save{margin-top:8px}
+.ms-search{padding:12px 18px 0}
+.ms-search input{
+  width:100%;background:transparent;border:none;border-bottom:1px dashed rgba(232,224,210,.3);
+  color:var(--paper);font-family:var(--book-font);font-size:14px;letter-spacing:.06em;
+  padding:6px 2px 9px;
+}
+.ms-search input::placeholder{color:rgba(232,224,210,.35)}
+.ms-search input:focus{outline:none;border-bottom-color:var(--lamp)}
+.ms-nomatch{font-size:12px;color:rgba(232,224,210,.45);letter-spacing:.1em;padding:14px 2px}
+.ms-hit{background:rgba(201,168,106,.35);color:#ffe9c4;border-radius:3px;padding:0 1px}
 .bind-opts .bo-c{display:flex;align-items:center;gap:8px;font-size:12px;color:rgba(232,224,210,.72);cursor:pointer}
 .bind-opts .bo-c input{accent-color:#c9a86a}
 /* ---- 公共資料卡 ---- */
@@ -1544,6 +1579,8 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
   <div class="panel">
     <div class="panel-head">
       <h2>書桌前的筆記</h2>
+      <button class="head-undo" id="btn-undo" disabled aria-label="復原上一步">復原</button>
+      <button class="head-undo" id="btn-redo" disabled aria-label="重做">重做</button>
       <button class="x" data-close="ov-write" aria-label="關閉">✕</button>
     </div>
     <div class="write-body">
@@ -1635,7 +1672,20 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
       <h2>舊雨書盒</h2>
       <button class="x" data-close="ov-lib" aria-label="關閉">✕</button>
     </div>
+    <div class="lib-entry"><button class="btn btn-ghost" id="btn-myshelf">我的書架 · 管理我的內容</button></div>
     <div class="shop-body" id="lib-body"></div>
+  </div>
+</div>
+
+<!-- 我的書架覆層 -->
+<div class="overlay" id="ov-shelf" role="dialog" aria-modal="true" aria-label="我的書架">
+  <div class="panel">
+    <div class="panel-head">
+      <h2>我的書架</h2>
+      <button class="x" data-close="ov-shelf" aria-label="關閉">✕</button>
+    </div>
+    <div class="ms-search"><input id="ms-q" type="search" placeholder="搜尋標題或內容……" aria-label="搜尋我的書架"></div>
+    <div class="shop-body" id="shelf-body"></div>
   </div>
 </div>
 
@@ -2086,7 +2136,7 @@ function openOv(id){
   lastFocus=document.activeElement;
   $("#"+id).classList.add("open");
   const p=$("#"+id+" .panel");
-  const f=p.querySelector("input,textarea,button:not(.x)");
+  const f=p.querySelector("input,textarea,button:not(.x):not(.head-undo)");
   setTimeout(()=>(f||p.querySelector(".x")).focus(),30);
 }
 function closeOv(id){
@@ -2121,7 +2171,8 @@ ta.addEventListener("input",()=>{
   wc.textContent=n+" 字";
   bindBtn.disabled=n===0;
 });
-$("#btn-write").addEventListener("click",()=>{openOv("ov-write")});
+let editingId=null; /* 從「我的書架」進入的編輯模式 */
+$("#btn-write").addEventListener("click",()=>{editingId=null;editFromShelf=false;bindBtn.textContent="裝訂成書";resetUndo(ti.value,ta.value);openOv("ov-write")});
 bindBtn.addEventListener("click",()=>{
   const content=ta.value.trim();
   if(!content)return;
@@ -2130,27 +2181,46 @@ bindBtn.addEventListener("click",()=>{
   const before=state.wordsTotal;
   const vis=(document.querySelector('input[name="bindvis"]:checked')||{}).value||"private";
   const shared=vis!=="private";
-  state.books.push({
-    id:"b"+Date.now().toString(36),
-    title,content,words,
-    ts:Date.now(),
-    color:SPINES[state.books.length%SPINES.length],
-    visibility:vis,
-    allowAnnotations:shared?$("#bind-anno").checked:false,
-    allowReplies:shared?$("#bind-reply").checked:false,
-    withdrawn:false,
-    pubDate:vis==="public"?Date.now():null
-  });
-  state.wordsTotal+=words;
+  if(editingId){
+    const b=state.books.find(x=>x.id===editingId);
+    if(b){
+      const wasPublic=b.visibility==="public";
+      b.title=title;b.content=content;b.words=words;
+      b.visibility=vis;
+      b.allowAnnotations=shared?$("#bind-anno").checked:false;
+      b.allowReplies=shared?$("#bind-reply").checked:false;
+      if(vis==="public"){b.withdrawn=false;b.pubDate=b.pubDate||Date.now()}
+      else{b.pubDate=null;if(wasPublic)b.withdrawn=true}
+    }
+    editingId=null;bindBtn.textContent="裝訂成書";
+  }else{
+    state.books.push({
+      id:"b"+Date.now().toString(36),
+      title,content,words,
+      ts:Date.now(),
+      color:SPINES[state.books.length%SPINES.length],
+      visibility:vis,
+      allowAnnotations:shared?$("#bind-anno").checked:false,
+      allowReplies:shared?$("#bind-reply").checked:false,
+      withdrawn:false,
+      pubDate:vis==="public"?Date.now():null
+    });
+    state.wordsTotal+=words;
+  }
   save();renderShelf();
+  if($("#ov-shelf").classList.contains("open"))renderMyShelf();
   ta.value="";ti.value="";wc.textContent="0 字";bindBtn.disabled=true;
+  resetUndo("","");
   document.querySelector('input[name="bindvis"][value="private"]').checked=true;
   $("#bind-subs").hidden=true;$("#bind-anno").checked=false;$("#bind-reply").checked=false;
   closeOv("ov-write");
-  toast(vis==="public"?"《"+title+"》裝訂好了，一份送上了星軌檢索輪。"
+  if(editFromShelf){editFromShelf=false;renderMyShelf();openOv("ov-shelf")}
+  const wasEdit=before===state.wordsTotal;
+  toast(wasEdit?"《"+title+"》重新裝訂好了，放回原位。"
+    :vis==="public"?"《"+title+"》裝訂好了，一份送上了星軌檢索輪。"
     :vis==="room"?"《"+title+"》裝訂好了，放在客廳，朋友來了能翻。"
     :"《"+title+"》裝訂好了，放上書架。");
-  checkDawn(before,state.wordsTotal);
+  if(!wasEdit)checkDawn(before,state.wordsTotal);
 });
 /* 只有選客廳或公共星軌，才亮出批注與觀看的開關 */
 document.querySelectorAll('input[name="bindvis"]').forEach(r=>r.addEventListener("change",()=>{
@@ -2158,6 +2228,34 @@ document.querySelectorAll('input[name="bindvis"]').forEach(r=>r.addEventListener
   $("#bind-subs").hidden=priv;
   if(priv){$("#bind-anno").checked=false;$("#bind-reply").checked=false}
 }));
+/* ---- 復原／重做：誤刪整篇也拿得回來 ---- */
+const undoStack=[],redoStack=[];
+let undoTimer=null,undoLast={t:"",c:""},prevCLen=0;
+function syncUndoBtns(){$("#btn-undo").disabled=!undoStack.length;$("#btn-redo").disabled=!redoStack.length}
+function snapNow(){
+  const cur={t:ti.value,c:ta.value};
+  if(cur.t===undoLast.t&&cur.c===undoLast.c)return;
+  undoStack.push(undoLast);if(undoStack.length>60)undoStack.shift();
+  undoLast=cur;redoStack.length=0;syncUndoBtns();
+}
+function scheduleSnap(){clearTimeout(undoTimer);undoTimer=setTimeout(snapNow,700)}
+function resetUndo(t,c){clearTimeout(undoTimer);undoStack.length=0;redoStack.length=0;undoLast={t,c};prevCLen=c.length;syncUndoBtns()}
+ta.addEventListener("input",()=>{
+  if(prevCLen>50&&ta.value.length===0)toast("整篇都刪掉了——別急，右上角的「復原」可以拿回來。",3600);
+  prevCLen=ta.value.length;scheduleSnap();
+});
+ti.addEventListener("input",scheduleSnap);
+function applySnap(s){ti.value=s.t;ta.value=s.c;undoLast={t:s.t,c:s.c};prevCLen=s.c.length;ta.dispatchEvent(new Event("input"))}
+$("#btn-undo").addEventListener("click",()=>{
+  clearTimeout(undoTimer);snapNow();
+  if(!undoStack.length)return;
+  redoStack.push(undoLast);applySnap(undoStack.pop());syncUndoBtns();
+});
+$("#btn-redo").addEventListener("click",()=>{
+  clearTimeout(undoTimer);snapNow();
+  if(!redoStack.length)return;
+  undoStack.push(undoLast);applySnap(redoStack.pop());syncUndoBtns();
+});
 function checkDawn(before,now){
   const marks=[[300,"窗外泛起第一層灰白。繼續寫，或去睡。"],[800,"天色又亮了一階，雨聲好像小了一點。"],[1500,"天亮了。該睡啦。"]];
   for(const[m,msg]of marks)if(before<m&&now>=m)toast(msg,4200);
@@ -2194,26 +2292,19 @@ $("#btn-withdraw").addEventListener("click",()=>{
   const wd=$("#btn-withdraw");
   if(wd.dataset.arm!=="1"){
     wd.dataset.arm="1";wd.textContent="確定撤回？再按一次";wd.classList.add("warn");
-    toast("撤回後，其他人將無法在公共星軌看到這份筆記，但你的原稿仍會留在自己的書架。",4200);
+    toast("撤回後，其他人將無法在公共星軌看到這份筆記，但你的原稿仍會保留在自己的書架裡。",4200);
     setTimeout(()=>{if(wd.dataset.arm==="1"){wd.dataset.arm="";wd.textContent="撤回公共投稿";wd.classList.remove("warn")}},4500);
     return;
   }
-  b.withdrawn=true;b.visibility="private";b.pubDate=null;save();
+  b.withdrawn=true;b.visibility="private";b.pubDate=null;
+  b.allowAnnotations=false;b.allowReplies=false;save();
   wd.hidden=true;wd.dataset.arm="";wd.textContent="撤回公共投稿";wd.classList.remove("warn");
   $("#btn-pub").hidden=!!b.loan;
   toast("已經撤回。書還在你的架上。",3000);
 });
 $("#btn-export").addEventListener("click",()=>{
   const b=state.books.find(x=>x.id===readingId);if(!b)return;
-  const md="# "+b.title+"\n\n> 裝訂於雨天書房 · "+new Date(b.ts).toISOString().slice(0,10)+"\n\n"+b.content+"\n";
-  const blob=new Blob([md],{type:"text/markdown;charset=utf-8"});
-  const a=document.createElement("a");
-  const d=new Date(b.ts);
-  const pad=n=>String(n).padStart(2,"0");
-  a.href=URL.createObjectURL(blob);
-  a.download="rainy_note_"+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate())+"_"+pad(d.getHours())+pad(d.getMinutes())+".md";
-  document.body.appendChild(a);a.click();a.remove();
-  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+  exportBookMd(b);
   toast("匯出了，紙本拿去印吧。");
 });
 /* ---- Word / PDF 匯出 ---- */
@@ -2248,6 +2339,150 @@ $("#btn-export-pdf").addEventListener("click",()=>{
   setTimeout(()=>{window.print();document.body.classList.remove("printing")},80);
   toast("選「存成 PDF」就好。");
 });
+/* ================= 我的書架（內容管理） ================= */
+function exportBookMd(b){
+  const md="# "+b.title+"\n\n> 裝訂於雨天書房 · "+new Date(b.ts).toISOString().slice(0,10)+"\n\n"+b.content+"\n";
+  download("rainy_note_"+stamp(b)+".md",new Blob([md],{type:"text/markdown;charset=utf-8"}));
+}
+const MS_VIS={private:"私人筆記",room:"客廳分享",public:"公共星軌投稿"};
+function renderMyShelf(){
+  const body=$("#shelf-body");body.innerHTML="";
+  const q=($("#ms-q").value||"").trim().toLowerCase();
+  const hit=b=>!q||b.title.toLowerCase().includes(q)||b.content.toLowerCase().includes(q);
+  const secs=[
+    ["私人筆記",state.books.filter(b=>!b.loan&&b.visibility==="private"&&hit(b))],
+    ["客廳分享",state.books.filter(b=>!b.loan&&b.visibility==="room"&&hit(b))],
+    ["公共星軌投稿",state.books.filter(b=>!b.loan&&b.visibility==="public"&&!b.withdrawn&&hit(b))],
+    ["借出的書",state.books.filter(b=>!!b.loan&&hit(b))]
+  ];
+  const EMPTY={0:"還沒有私人筆記。寫完裝訂時選「我的書架」就好。",1:"客廳還空著。裝訂時選「帶到客廳」，朋友來了能翻。",2:"還沒有投稿。裝訂時選「投稿到公共星軌」，它會出現在輪子上。",3:"目前沒有書在外面。放進舊雨書盒的書被借走時，會出現在這裡。"};
+  let total=0;
+  secs.forEach(([name,list],si)=>{
+    if(q&&!list.length)return;
+    total+=list.length;
+    const sec=document.createElement("div");sec.className="ms-sec";
+    const h=document.createElement("h3");h.textContent=name+"（"+list.length+"）";sec.appendChild(h);
+    if(!list.length){const e=document.createElement("div");e.className="ms-empty";e.textContent=EMPTY[si];sec.appendChild(e)}
+    list.forEach(b=>sec.appendChild(msRow(b,name,q)));
+    body.appendChild(sec);
+  });
+  if(q&&!total){const n=document.createElement("div");n.className="ms-nomatch";n.textContent="架上找不到「"+$("#ms-q").value.trim()+"」——換個詞試試。";body.appendChild(n)}
+}
+function msHi(raw,q){
+  if(!q)return esc(raw);
+  const rx=new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),"gi");
+  let out="",last=0,m;
+  while((m=rx.exec(raw))){
+    out+=esc(raw.slice(last,m.index))+"<mark class='ms-hit'>"+esc(m[0])+"</mark>";
+    last=m.index+m[0].length;
+    if(!m[0].length)break;
+  }
+  return out+esc(raw.slice(last));
+}
+function msExcerpt(b,q){
+  const c=b.content;
+  if(!q)return c.slice(0,42)+(c.length>42?"……":"");
+  const i=c.toLowerCase().indexOf(q.toLowerCase());
+  if(i<0)return c.slice(0,42)+(c.length>42?"……":"");
+  const start=Math.max(0,i-16),end=Math.min(c.length,i+q.length+26);
+  return (start>0?"……":"")+c.slice(start,end)+(end<c.length?"……":"");
+}
+function msRow(b,secName,q){
+  const row=document.createElement("div");row.className="ms-row";
+  const d=new Date(b.ts);
+  const date=d.getFullYear()+"/"+(d.getMonth()+1)+"/"+d.getDate();
+  row.innerHTML="<div class='ms-title'>"+msHi(b.title,q)+"</div>"
+    +"<div class='ms-meta'>"+date+" 裝訂 · "+b.words+" 字</div>"
+    +"<div class='ms-excerpt'>"+msHi(msExcerpt(b,q),q)+"</div>"
+    +"<div class='ms-tags'></div><div class='ms-acts'></div><div class='ms-set' hidden></div>";
+  const tags=row.querySelector(".ms-tags");
+  const addTag=(t,gold,dim)=>{const s=document.createElement("span");s.className="ms-tag"+(gold?" gold":"")+(dim?" dim":"");s.textContent=t;tags.appendChild(s)};
+  if(b.loan)addTag("借出中 · "+b.loan.by,true);
+  else addTag(secName,b.visibility==="public");
+  if(b.withdrawn)addTag("已撤回",false,true);
+  if(b.listed&&!b.loan)addTag("在舊雨書盒");
+  if(!b.loan){
+    addTag("批注 "+(b.allowAnnotations?"✓":"—"),!!b.allowAnnotations,!b.allowAnnotations);
+    addTag("不同觀看 "+(b.allowReplies?"✓":"—"),!!b.allowReplies,!b.allowReplies);
+  }
+  const acts=row.querySelector(".ms-acts");
+  const mk=(t,fn,cls)=>{const x=document.createElement("button");x.className="btn "+cls;x.textContent=t;x.addEventListener("click",fn);acts.appendChild(x);return x};
+  mk("閱讀原稿",()=>openRead(b.id),"btn-ghost");
+  mk("編輯",()=>openWriteEdit(b.id),"btn-ghost");
+  if(!b.loan)mk("權限設定",()=>{const s=row.querySelector(".ms-set");s.hidden=!s.hidden;if(!s.hidden)msFillSet(b,row)},"btn-ghost");
+  mk("匯出",()=>{exportBookMd(b);toast("匯出了，紙本拿去印吧。")},"btn-ghost");
+  if(b.visibility==="public"&&!b.withdrawn&&!b.loan){
+    const w=mk("撤回公共投稿",()=>{},"btn-danger");
+    w.addEventListener("click",()=>{
+      if(w.dataset.arm!=="1"){
+        w.dataset.arm="1";w.textContent="確定撤回？再按一次";
+        toast("撤回後，其他人將無法在公共星軌看到這份筆記，但你的原稿仍會保留在自己的書架裡。",4200);
+        setTimeout(()=>{if(w.dataset.arm==="1"){w.dataset.arm="";w.textContent="撤回公共投稿"}},4500);
+        return;
+      }
+      b.withdrawn=true;b.visibility="private";b.pubDate=null;
+      b.allowAnnotations=false;b.allowReplies=false;
+      save();renderShelf();renderMyShelf();
+      if($("#ov-lib").classList.contains("open"))renderLib();
+      toast("已經撤回。書還在你的架上。",3000);
+    });
+  }
+  return row;
+}
+function msFillSet(b,row){
+  const s=row.querySelector(".ms-set");
+  const cur=b.visibility;
+  s.innerHTML=
+    "<label><input type='radio' name='msv-"+b.id+"' value='private'"+(cur==="private"?" checked":"")+"> 放回私人書架</label>"
+    +"<label><input type='radio' name='msv-"+b.id+"' value='room'"+(cur==="room"?" checked":"")+"> 帶到客廳</label>"
+    +"<label><input type='radio' name='msv-"+b.id+"' value='public'"+(cur==="public"?" checked":"")+"> 投稿到公共星軌</label>"
+    +"<div class='ms-subs'>"
+    +"<label><input type='checkbox' class='ms-anno'"+(b.allowAnnotations?" checked":"")+"> 允許其他人留下紙邊批注</label>"
+    +"<label><input type='checkbox' class='ms-reply'"+(b.allowReplies?" checked":"")+"> 允許其他人提出不同觀看</label>"
+    +"</div>"
+    +"<button class='btn btn-primary ms-save'>儲存設定</button>";
+  const subs=s.querySelector(".ms-subs");
+  const sync=()=>{
+    const priv=s.querySelector("input[type=radio]:checked").value==="private";
+    subs.hidden=priv;
+    if(priv){s.querySelector(".ms-anno").checked=false;s.querySelector(".ms-reply").checked=false}
+  };
+  subs.hidden=cur==="private";
+  s.querySelectorAll("input[type=radio]").forEach(r=>r.addEventListener("change",sync));
+  s.querySelector(".ms-save").addEventListener("click",()=>{
+    const v=s.querySelector("input[type=radio]:checked").value;
+    const wasPublic=b.visibility==="public";
+    b.visibility=v;
+    b.allowAnnotations=v==="private"?false:s.querySelector(".ms-anno").checked;
+    b.allowReplies=v==="private"?false:s.querySelector(".ms-reply").checked;
+    if(v==="public"){b.withdrawn=false;b.pubDate=b.pubDate||Date.now()}
+    else{b.pubDate=null;if(wasPublic)b.withdrawn=true}
+    save();renderShelf();renderMyShelf();
+    if($("#ov-lib").classList.contains("open"))renderLib();
+    toast(v==="public"?"《"+b.title+"》送上了星軌檢索輪。"
+      :v==="room"?"《"+b.title+"》移到客廳了，朋友來了能翻。"
+      :"《"+b.title+"》收回私人書架了。",3000);
+  });
+}
+let editFromShelf=false;
+function openWriteEdit(id){
+  const b=state.books.find(x=>x.id===id);if(!b)return;
+  editingId=id;
+  editFromShelf=$("#ov-shelf").classList.contains("open");
+  closeOv("ov-shelf");closeOv("ov-lib");
+  ti.value=b.title;ta.value=b.content;ta.dispatchEvent(new Event("input"));
+  resetUndo(b.title,b.content);
+  const cur=b.visibility==="public"&&b.withdrawn?"private":b.visibility;
+  document.querySelector('input[name="bindvis"][value="'+cur+'"]').checked=true;
+  $("#bind-subs").hidden=cur==="private";
+  $("#bind-anno").checked=cur!=="private"&&!!b.allowAnnotations;
+  $("#bind-reply").checked=cur!=="private"&&!!b.allowReplies;
+  bindBtn.textContent="重新裝訂";
+  openOv("ov-write");
+}
+$("#btn-myshelf").addEventListener("click",()=>{$("#ms-q").value="";renderMyShelf();openOv("ov-shelf")});
+$("#ms-q").addEventListener("input",()=>renderMyShelf());
+
 /* ---- 燒書：先問一次，火在壁爐 ---- */
 let burnId=null;
 $("#btn-burn").addEventListener("click",()=>{

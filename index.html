@@ -1106,6 +1106,7 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
 .bind-opts .bo-r{display:flex;align-items:center;gap:8px;font-size:13px;padding:5px 0;cursor:pointer;letter-spacing:.06em}
 .bind-opts .bo-r input{accent-color:#c9a86a}
 .bind-opts .bo-subs{margin:6px 0 0 22px;padding:8px 10px;border-left:2px solid rgba(201,168,106,.45);display:flex;flex-direction:column;gap:4px}
+.bind-opts .bo-subs[hidden]{display:none}
 .bind-opts .bo-c{display:flex;align-items:center;gap:8px;font-size:12px;color:rgba(232,224,210,.72);cursor:pointer}
 .bind-opts .bo-c input{accent-color:#c9a86a}
 /* ---- 公共資料卡 ---- */
@@ -2153,7 +2154,9 @@ bindBtn.addEventListener("click",()=>{
 });
 /* 只有選客廳或公共星軌，才亮出批注與觀看的開關 */
 document.querySelectorAll('input[name="bindvis"]').forEach(r=>r.addEventListener("change",()=>{
-  $("#bind-subs").hidden=document.querySelector('input[name="bindvis"]:checked').value==="private";
+  const priv=document.querySelector('input[name="bindvis"]:checked').value==="private";
+  $("#bind-subs").hidden=priv;
+  if(priv){$("#bind-anno").checked=false;$("#bind-reply").checked=false}
 }));
 function checkDawn(before,now){
   const marks=[[300,"窗外泛起第一層灰白。繼續寫，或去睡。"],[800,"天色又亮了一階，雨聲好像小了一點。"],[1500,"天亮了。該睡啦。"]];

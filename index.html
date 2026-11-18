@@ -526,7 +526,7 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
 .lib-door small{display:block;font-size:9px;letter-spacing:.3em;color:rgba(232,224,210,.35);margin-top:2px}
 .lib-door2{top:81.5%}
 /* ---- 出洞通道（長黑，點一下可以直接走出去） ---- */
-.passage{position:fixed;inset:0;z-index:48;background:#000;overflow:hidden;cursor:pointer}
+.passage{position:fixed;inset:0;z-index:80;background:#000;overflow:hidden;cursor:pointer}
 .passage[hidden]{display:none}
 .passage video,.passage img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .pass-bats{position:absolute;left:0;right:0;top:0;height:30%;pointer-events:none;z-index:2}
@@ -698,7 +698,8 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
 .cab-tag{position:absolute;left:5px;right:5px;bottom:8px;z-index:2;font-family:var(--book-font);font-size:10px;letter-spacing:.08em;color:#e2f7ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 8px #03152a}
 .cab-page{position:absolute;left:25px;top:42px;width:24px;height:18px;background:#e4d5b4;transform:rotate(-3deg);box-shadow:1px 2px 3px #160f08}
 .cab-page::after{content:"";position:absolute;left:4px;right:4px;top:6px;height:1px;background:#7e684b;box-shadow:0 4px #7e684b,0 8px #7e684b}
-.wh-label{position:absolute;left:50%;top:77%;bottom:auto;transform:translateX(-50%);z-index:20;padding:9px 15px;border:1px solid rgba(146,226,255,.35);border-radius:999px;background:rgba(3,23,49,.84);backdrop-filter:blur(7px);font-family:var(--book-font);font-size:12px;letter-spacing:.2em;color:rgba(231,249,255,.9);white-space:nowrap;box-shadow:0 5px 18px rgba(0,0,0,.3),0 0 16px rgba(72,195,240,.14)}
+.wh-label{position:absolute;left:50%;top:77%;bottom:auto;transform:translateX(-50%);z-index:20;pointer-events:none;transition:opacity .6s ease;padding:9px 15px;border:1px solid rgba(146,226,255,.35);border-radius:999px;background:rgba(3,23,49,.84);backdrop-filter:blur(7px);font-family:var(--book-font);font-size:12px;letter-spacing:.2em;color:rgba(231,249,255,.9);white-space:nowrap;box-shadow:0 5px 18px rgba(0,0,0,.3),0 0 16px rgba(72,195,240,.14)}
+.wh-label.ghost{opacity:0}
 .wh-label[hidden]{display:none}
 .wh-filter-clear{position:absolute;left:50%;top:84%;transform:translateX(-50%);z-index:21;padding:5px 12px;border:1px solid rgba(255,215,128,.42);border-radius:999px;background:rgba(62,39,22,.76);color:#ffe5a9;font-size:10px;letter-spacing:.16em;cursor:pointer}
 .wh-filter-clear[hidden]{display:none}
@@ -918,6 +919,29 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
   background:rgba(5,7,11,.72);backdrop-filter:blur(3px);
 }
 .overlay.open{display:flex}
+#ov-read{z-index:70}
+#ov-burn{z-index:71}
+/* 星軌廳逃生門：抬過星圖索引列與資料卡，永遠回得了家 */
+.wheelview .lib-back-btn{bottom:calc(66px + 7%);z-index:26;padding:12px 18px;transition:opacity .35s ease,border-color .2s,background .2s}
+.wheelview .lib-back-btn.away{opacity:0;pointer-events:none}
+/* ---- 真理論辯廳的來信 ---- */
+.wh-letter-btn{position:absolute;right:5%;top:calc(12% + 54px);z-index:15;width:46px;height:36px;padding:0;border:none;background:none;cursor:pointer;filter:drop-shadow(0 3px 8px rgba(0,0,0,.55));transition:transform .2s}
+.wh-letter-btn:hover,.wh-letter-btn:focus-visible{transform:translateY(-2px)}
+.letter-overlay{position:fixed;inset:0;z-index:65;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(3,6,12,.62);backdrop-filter:blur(4px)}
+.letter-overlay[hidden]{display:none}
+.letter-paper{position:relative;width:min(92vw,430px);max-height:86dvh;overflow-y:auto;padding:36px 28px 30px;transform:rotate(-.8deg);
+  background:radial-gradient(ellipse at 82% 10%,rgba(120,84,40,.14),transparent 42%),radial-gradient(ellipse at 12% 90%,rgba(120,84,40,.12),transparent 46%),repeating-linear-gradient(0deg,rgba(120,90,50,.05) 0 2px,transparent 2px 5px),linear-gradient(173deg,#e2cfa5 0%,#d8c296 48%,#cdb385 100%);
+  border-radius:3px;box-shadow:0 24px 60px rgba(0,0,0,.62),inset 0 0 42px rgba(120,84,40,.22);
+  color:#31406b;font-family:"Kaiti SC","STKaiti","KaiTi","DFKai-SB",serif}
+.letter-paper::before{content:"";position:absolute;left:50%;top:46%;width:280px;height:280px;transform:translate(-50%,-50%);border:1.5px solid rgba(58,86,140,.08);border-radius:50%;pointer-events:none}
+.letter-body{position:relative}
+.letter-body p{margin:0 0 13px;font-size:14.5px;line-height:2.02;letter-spacing:.04em;text-align:justify}
+.letter-dear{font-size:16.5px}
+.letter-sign{text-align:right;margin:18px 0 0}
+.letter-postmark{position:absolute;right:16px;top:14px;width:76px;height:76px;border:2px solid rgba(58,86,140,.48);border-radius:50%;display:flex;align-items:center;justify-content:center;text-align:center;font-size:8.5px;line-height:1.7;letter-spacing:.12em;color:rgba(58,86,140,.6);transform:rotate(9deg);font-family:var(--book-font);pointer-events:none}
+.letter-stamp{position:absolute;left:18px;top:14px;opacity:.8;pointer-events:none}
+#letter-close{position:absolute;right:8px;top:8px;width:30px;height:30px;border-radius:50%;border:1px solid rgba(58,86,140,.4);background:rgba(255,250,238,.5);color:#4a5a86;font-size:13px;cursor:pointer;font-family:var(--book-font)}
+@media (max-width:760px){.wheelview .lib-back-btn{bottom:calc(5% + 66px)}}
 .panel{
   background:#12161f;border:1px solid rgba(232,224,210,.16);
   border-radius:14px;width:min(680px,100%);max-height:calc(100dvh - 40px);
@@ -1076,6 +1100,20 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}
 }
+/* ---- 裝訂投稿設定 ---- */
+.bind-opts{padding:0 18px 14px;font-family:var(--book-font);color:rgba(232,224,210,.85)}
+.bind-opts .bo-q{font-size:12px;letter-spacing:.14em;color:rgba(232,224,210,.6);margin-bottom:8px}
+.bind-opts .bo-r{display:flex;align-items:center;gap:8px;font-size:13px;padding:5px 0;cursor:pointer;letter-spacing:.06em}
+.bind-opts .bo-r input{accent-color:#c9a86a}
+.bind-opts .bo-subs{margin:6px 0 0 22px;padding:8px 10px;border-left:2px solid rgba(201,168,106,.45);display:flex;flex-direction:column;gap:4px}
+.bind-opts .bo-c{display:flex;align-items:center;gap:8px;font-size:12px;color:rgba(232,224,210,.72);cursor:pointer}
+.bind-opts .bo-c input{accent-color:#c9a86a}
+/* ---- 公共資料卡 ---- */
+.wp-badge{display:inline-block;font-family:var(--book-font);font-size:10px;letter-spacing:.2em;color:#1c1610;background:linear-gradient(180deg,#e8c98a,#c9a86a);border-radius:999px;padding:2px 10px 2px 12px;margin-bottom:6px}
+.wp-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.wp-act{font-family:var(--book-font);font-size:11px;letter-spacing:.08em;padding:6px 12px;border-radius:999px;border:1px solid rgba(166,232,255,.35);background:rgba(3,23,49,.6);color:#dff7ff;cursor:pointer}
+.wp-act:hover{border-color:rgba(255,214,122,.7)}
+.wp-act.warn{border-color:#d07a5a;color:#f2b79b}
 </style>
 </head>
 <body>
@@ -1363,6 +1401,9 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
   </div>
   <button class="wh-mode-toggle" id="wh-mode-toggle" aria-label="切換觀看框架">重新定位觀看框架</button>
   <div class="wh-mode-quote" id="wh-mode-quote"></div>
+  <button class="wh-letter-btn" id="wh-letter" aria-label="真理論辯廳的來信">
+    <svg viewBox="0 0 46 36" aria-hidden="true"><rect x="2" y="4" width="42" height="28" rx="2.5" fill="#e6d3a8" stroke="#8a6f45" stroke-width="1.4"/><path d="M3 5 L23 21 L43 5" fill="none" stroke="#8a6f45" stroke-width="1.4"/><circle cx="23" cy="21" r="5" fill="#3a567c" opacity=".88"/><circle cx="23" cy="21" r="2.3" fill="#d8e6f5" opacity=".9"/></svg>
+  </button>
   <div class="wh-stage" id="wh-stage">
     <div class="wh-ocean" aria-hidden="true">
       <div class="wh-photo jelly-photo"></div>
@@ -1401,6 +1442,25 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
   </div>
   <button class="lib-back-btn" id="btn-wheel-back">← 回到書穴</button>
   <div class="lib-scene-hint">星軌檢索輪——真理也會繞著人轉。</div>
+</div>
+
+<!-- 真理論辯廳的來信 -->
+<div class="letter-overlay" id="letter-overlay" hidden>
+  <div class="letter-paper" role="dialog" aria-modal="true" aria-label="真理論辯廳的來信">
+    <div class="letter-stamp"><svg viewBox="0 0 40 40" width="38" height="38" aria-hidden="true"><path d="M8 19a12 12 0 0 1 24 0c0 2.2-3 3.2-4.2 5.2C26.6 26.4 26 29 24 29s-2.2-3-4-3-2 3-4 3-2.6-2.6-3.8-4.8C11 22.2 8 21.2 8 19z" fill="rgba(72,120,180,.32)"/><path d="M14 25c.2 4-1.8 5.2-1.6 9M20 27c.2 4-.8 5.2-.6 9M26 25c-.2 4 1.8 5.2 1.6 9" stroke="rgba(72,120,180,.45)" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg></div>
+    <div class="letter-postmark">HALL OF ORBITS<br>真理論辯廳<br>星軌郵便</div>
+    <button id="letter-close" aria-label="收起信">✕</button>
+    <div class="letter-body">
+      <p class="letter-dear">親愛的觀測者：</p>
+      <p>你收到這封信的時候，輪子應該還在轉。先別急著選一節車廂——有些事，想在你開始觀看之前說。</p>
+      <p>這個空間討論的是：真理可能會隨著時代、位置、觀看者，和話語權而改變。同一件事，在不同的時代可能被認為是真理，也可能被認為是錯誤；某些現在被接受的觀點，過去可能被視為離經叛道，而某些當時被排斥的觀點，後來可能成為新的主流。</p>
+      <p>所以，這裡不打算請你選出一個唯一正確的答案。想讓你明白的是：光是觀看，我們可能只是在被動接受別人定義好的真理；但即使自己發言、試圖定義真理，也可能因為太前衛，而被當時的人排斥。</p>
+      <p>因此，這裡不是單純的知識資料庫，而是一個讓不同觀看方式並存的公共論辯空間。十節車廂是十種觀看的位置；每一份資料，都是某個人暫時站在那個位置上，所看見的世界。</p>
+      <p>日心說與地心說，右上角隨時可以切換。世界不繞著我轉，但我仍然在其中；我站在哪裡，世界就從哪裡開始。兩種說法都對，也都不完整——星圖上沒有唯一的中心，只有暫時停下來的位置。</p>
+      <p>如果哪天你把什麼留在了這裡，它會被放進某一節車廂，慢慢轉，等另一個人停下來看。絕對的真理不會轉；會轉的，是每個年代、每個位置所能看見的它。你此刻看見的，也許會和未來某刻的星辰交相輝映——但輝映不是抵達，那顆未來的星看見的，也不必然是絕對的真理。</p>
+      <p class="letter-sign">—— 星軌檢索輪 · 真理論辯廳 敬上</p>
+    </div>
+  </div>
 </div>
 
 <!-- 路上（河邊的布告欄） -->
@@ -1489,6 +1549,16 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
       <input id="note-title" type="text" maxlength="20" placeholder="替這本書取個名字" aria-label="書名">
       <textarea id="note-content" placeholder="雨聲當背景，想到什麼就寫。寫完裝訂起來，會變成書架上的一本書。" aria-label="筆記內容"></textarea>
     </div>
+    <div class="bind-opts" id="bind-opts">
+      <div class="bo-q">這本筆記要放在哪裡？</div>
+      <label class="bo-r"><input type="radio" name="bindvis" value="private" checked> 我的書架（私人）</label>
+      <label class="bo-r"><input type="radio" name="bindvis" value="room"> 帶到客廳</label>
+      <label class="bo-r"><input type="radio" name="bindvis" value="public"> 投稿到公共星軌</label>
+      <div class="bo-subs" id="bind-subs" hidden>
+        <label class="bo-c"><input type="checkbox" id="bind-anno"> 允許其他人留下紙邊批注</label>
+        <label class="bo-c"><input type="checkbox" id="bind-reply"> 允許其他人提出不同觀看</label>
+      </div>
+    </div>
     <div class="write-foot">
       <span class="wc" id="wc">0 字</span>
       <button class="btn btn-ghost" data-close="ov-write">先擱著</button>
@@ -1521,6 +1591,8 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
       <button class="btn btn-primary" id="btn-export">匯出 .md</button>
       <button class="btn btn-primary" id="btn-export-doc">匯出 Word</button>
       <button class="btn btn-primary" id="btn-export-pdf">匯出 PDF</button>
+      <button class="btn btn-ghost" id="btn-pub" hidden>投稿到公共星軌</button>
+      <button class="btn btn-ghost" id="btn-withdraw" hidden>撤回公共投稿</button>
       <button class="btn btn-danger" id="btn-burn">燒掉這本</button>
       <button class="btn btn-ghost" data-close="ov-read">放回架上</button>
     </div>
@@ -1575,7 +1647,7 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
     </div>
     <div class="help-body">
       <p>這是一間雨天書房的概念雛形。<b>下雨天，留客天</b>——留下來讀書。</p>
-      <p><b>寫作</b>：點書桌上的筆記本開始寫。寫完「裝訂成書」，它就變成書架上的一本書，書名寫在書脊上。寫得越多，書越厚。不喜歡的書可以燒掉——會先問你一次，不會誤刪；房間裡有壁爐的話，就燒在壁爐裡。</p>
+      <p><b>寫作</b>：點書桌上的筆記本開始寫。寫完「裝訂成書」，它就變成書架上的一本書，書名寫在書脊上。寫得越多，書越厚。不喜歡的書可以燒掉——會先問你一次，不會誤刪；房間裡有壁爐的話，就燒在壁爐裡。裝訂的時候可以選這本書放哪裡：自己的書架、帶到客廳給朋友翻，或投稿到公共星軌——預設永遠是私人，只有你點頭，字才會出門。</p>
       <p><b>點當</b>：窗台上偶爾會出現淋濕的東西（雨傘、信、落葉），點一下就能當掉換雨滴。</p>
       <p><b>出去走走</b>：牆上有一扇門。不想讀了，就推門走進雨裡——外面的路上會積水窪，可以踩。陣雨來的時候是踩水時間，把整場水窪踩完有獎勵。玩夠了，點那扇亮著的門回家。街口的路牌指向河邊，那裡立著一座里民布告欄，貼著街坊的消息。</p>
       <p><b>裝飾</b>：雨滴可以在典當舖換家具——地毯、盆栽、暖爐、一座小壁爐，還有一隻貓。</p>
@@ -1583,7 +1655,7 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
       <p><b>聲音</b>：點「雨聲」打開白噪音。聖誕節期間會多一只音樂盒，寫字時還有很輕的鍵盤聲，踩水窪有「啪嚓」。</p>
       <p><b>聚會</b>：點「邀請朋友」，朋友會一個一個收傘進來，靠在一起讀書。他們讀你的書時，會在紙邊留下批注——重新打開那本書就看得見。來的時候偶爾會帶一碟點心，就放在書桌上；點一下吃掉，回一點雨滴。</p>
       <p><b>舊雨書盒</b>：窗下牆上釘著一只對外的小書盒。把裝訂好的書放進去，路過的人——還有蛋捲阿姨——會借走。書會自己回來，回來的時候裡面夾一張蓋著日期章的歸還卡，有時候桌上還會多一碟點心。被借越多次，章蓋得越多。借出去的期間，草稿還在你桌上，隨時能重讀。</p>
-      <p><b>書穴與星軌檢索輪</b>：書架下的小木牌往下走，是書穴——書從四面八方堆上來，牆和地板的界線都消失了，只剩中央一小塊空地、一盞燈、和一個安靜讀書的人影。你裝訂的書繫著金色書腰，散在空地周圍，點開就能重讀。書堆深處有一道細細的光：走出去要經過一段長長黑黑的通道（點一下可以直接走完），另一頭沉在夜海裡——水母和煙火之間，立著一座轉得很慢的星軌檢索輪。十節車廂是十顆星，各自載著一種觀看世界的方法；點一節讓它停下來，就能翻開它載著的檔案卡。左邊的星圖索引，可以只盯著某一顆星看。被朋友批注過、被借走過的書，也會被放上輪子，慢慢轉成公共資料。回來的路，是同一段通道，方向相反。</p>
+      <p><b>書穴與星軌檢索輪</b>：書架下的小木牌往下走，是書穴——書從四面八方堆上來，牆和地板的界線都消失了，只剩中央一小塊空地、一盞燈、和一個安靜讀書的人影。你裝訂的書繫著金色書腰，散在空地周圍，點開就能重讀。書堆深處有一道細細的光：走出去要經過一段長長黑黑的通道（點一下可以直接走完），另一頭沉在夜海裡——水母和煙火之間，立著一座轉得很慢的星軌檢索輪。十節車廂是十顆星，各自載著一種觀看世界的方法；點一節讓它停下來，就能翻開它載著的檔案卡。左邊的星圖索引，可以只盯著某一顆星看。裝訂時選擇投稿的書，會帶著主題、日期和摘要被放上輪子，成為公共資料；不想公開了，隨時可以撤回——原稿始終留在自己的架上。回來的路，是同一段通道，方向相反。</p>
       <p><b>設計理念</b>：檢索輪的全名是「真理論辯廳」。每次醒來，它會隨機選一種觀看框架——日心說或地心說，右上角隨時可以切換。日心說說：世界不繞著我轉，但我仍然在其中。地心說說：我站在哪裡，世界就從哪裡開始。兩種說法都對，也都不完整。十顆星載著十個題目——中心、記憶、語言、觀看、生活、衝突、理論、時間、偏離、未知——沒有哪一顆是答案，各自只是一種看法。星圖上沒有唯一的中心，只有暫時停下來的位置；真理也會繞著人轉。</p>
       <p><b>彩虹與陣雨</b>：雨下久了，遠山會慢慢變綠；偶爾雨歇，彩虹會出來一下。陣雨來的時候是踩水時間，把整場水窪踩完有獎勵。</p>
       <p><b>天亮</b>：一直寫，窗外的天色會慢慢泛白。寫到日出，就該睡了。</p>
@@ -1602,15 +1674,28 @@ const state=Object.assign({
   season:"夏", friends:[], festival:"none", rainMin:0, annotations:{}, snacks:[]
 }, JSON.parse(localStorage.getItem(KEY)||"{}"));
 function save(){localStorage.setItem(KEY,JSON.stringify(state))}
+/* 權限欄位遷移：舊書視同「帶到客廳、允許批注」，維持原本朋友翻書留字的世界 */
+state.books.forEach(b=>{
+  if(b.visibility===undefined)b.visibility="room";
+  if(b.allowAnnotations===undefined)b.allowAnnotations=(b.visibility==="room");
+  if(b.allowReplies===undefined)b.allowReplies=false;
+  if(b.withdrawn===undefined)b.withdrawn=false;
+});
 
 const $=s=>document.querySelector(s);
 const reduced=matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /* ================= 吐司 ================= */
-function toast(msg,ms=2600){
-  const t=document.createElement("div");t.className="toast";t.textContent=msg;
-  $("#toast-zone").appendChild(t);
-  setTimeout(()=>{t.classList.add("out");setTimeout(()=>t.remove(),320)},ms);
+/* 吐司交通管制：最多兩顆在場，其餘排隊，訊息一條不漏 */
+const toastQ=[];let toastLive=0;const TOAST_MAX=2;
+function toast(msg,ms=2600){toastQ.push([msg,ms]);pumpToast()}
+function pumpToast(){
+  while(toastLive<TOAST_MAX&&toastQ.length){
+    const [msg,ms]=toastQ.shift();toastLive++;
+    const t=document.createElement("div");t.className="toast";t.textContent=msg;
+    $("#toast-zone").appendChild(t);
+    setTimeout(()=>{t.classList.add("out");setTimeout(()=>{t.remove();toastLive--;pumpToast()},320)},ms);
+  }
 }
 
 /* ================= 雨聲（Web Audio 生成） ================= */
@@ -2042,19 +2127,34 @@ bindBtn.addEventListener("click",()=>{
   const title=ti.value.trim()||"無題";
   const words=content.length;
   const before=state.wordsTotal;
+  const vis=(document.querySelector('input[name="bindvis"]:checked')||{}).value||"private";
+  const shared=vis!=="private";
   state.books.push({
     id:"b"+Date.now().toString(36),
     title,content,words,
     ts:Date.now(),
-    color:SPINES[state.books.length%SPINES.length]
+    color:SPINES[state.books.length%SPINES.length],
+    visibility:vis,
+    allowAnnotations:shared?$("#bind-anno").checked:false,
+    allowReplies:shared?$("#bind-reply").checked:false,
+    withdrawn:false,
+    pubDate:vis==="public"?Date.now():null
   });
   state.wordsTotal+=words;
   save();renderShelf();
   ta.value="";ti.value="";wc.textContent="0 字";bindBtn.disabled=true;
+  document.querySelector('input[name="bindvis"][value="private"]').checked=true;
+  $("#bind-subs").hidden=true;$("#bind-anno").checked=false;$("#bind-reply").checked=false;
   closeOv("ov-write");
-  toast("《"+title+"》裝訂好了，放上書架。");
+  toast(vis==="public"?"《"+title+"》裝訂好了，一份送上了星軌檢索輪。"
+    :vis==="room"?"《"+title+"》裝訂好了，放在客廳，朋友來了能翻。"
+    :"《"+title+"》裝訂好了，放上書架。");
   checkDawn(before,state.wordsTotal);
 });
+/* 只有選客廳或公共星軌，才亮出批注與觀看的開關 */
+document.querySelectorAll('input[name="bindvis"]').forEach(r=>r.addEventListener("change",()=>{
+  $("#bind-subs").hidden=document.querySelector('input[name="bindvis"]:checked').value==="private";
+}));
 function checkDawn(before,now){
   const marks=[[300,"窗外泛起第一層灰白。繼續寫，或去睡。"],[800,"天色又亮了一階，雨聲好像小了一點。"],[1500,"天亮了。該睡啦。"]];
   for(const[m,msg]of marks)if(before<m&&now>=m)toast(msg,4200);
@@ -2068,12 +2168,38 @@ function openRead(id){
   $("#read-title").textContent=b.title;
   const d=new Date(b.ts);
   $("#read-meta").textContent=d.getFullYear()+" 年 "+(d.getMonth()+1)+" 月 "+d.getDate()+" 日裝訂 · "+b.words+" 字"
-    +(b.listed?(b.loan?" · 借出中（"+b.loan.by+"）":" · 在舊雨書盒"):"");
+    +(b.listed?(b.loan?" · 借出中（"+b.loan.by+"）":" · 在舊雨書盒"):"")
+    +(b.visibility==="public"&&!b.withdrawn?" · 公共投稿中":"");
   $("#read-text").textContent=b.content;
   renderNotes(id);
   renderCards(b);
+  const isPub=b.visibility==="public"&&!b.withdrawn;
+  const wd=$("#btn-withdraw");wd.hidden=!isPub;wd.textContent="撤回公共投稿";wd.classList.remove("warn");wd.dataset.arm="";
+  $("#btn-pub").hidden=isPub||!!b.loan;
   openOv("ov-read");
 }
+/* 投稿與撤回：原稿永遠留在自己架上 */
+$("#btn-pub").addEventListener("click",()=>{
+  const b=state.books.find(x=>x.id===readingId);if(!b)return;
+  b.visibility="public";b.withdrawn=false;b.pubDate=Date.now();save();
+  $("#btn-pub").hidden=true;
+  const wd=$("#btn-withdraw");wd.hidden=false;wd.textContent="撤回公共投稿";wd.classList.remove("warn");wd.dataset.arm="";
+  toast("《"+b.title+"》送上了星軌檢索輪。",3200);
+});
+$("#btn-withdraw").addEventListener("click",()=>{
+  const b=state.books.find(x=>x.id===readingId);if(!b)return;
+  const wd=$("#btn-withdraw");
+  if(wd.dataset.arm!=="1"){
+    wd.dataset.arm="1";wd.textContent="確定撤回？再按一次";wd.classList.add("warn");
+    toast("撤回後，其他人將無法在公共星軌看到這份筆記，但你的原稿仍會留在自己的書架。",4200);
+    setTimeout(()=>{if(wd.dataset.arm==="1"){wd.dataset.arm="";wd.textContent="撤回公共投稿";wd.classList.remove("warn")}},4500);
+    return;
+  }
+  b.withdrawn=true;b.visibility="private";b.pubDate=null;save();
+  wd.hidden=true;wd.dataset.arm="";wd.textContent="撤回公共投稿";wd.classList.remove("warn");
+  $("#btn-pub").hidden=!!b.loan;
+  toast("已經撤回。書還在你的架上。",3000);
+});
 $("#btn-export").addEventListener("click",()=>{
   const b=state.books.find(x=>x.id===readingId);if(!b)return;
   const md="# "+b.title+"\n\n> 裝訂於雨天書房 · "+new Date(b.ts).toISOString().slice(0,10)+"\n\n"+b.content+"\n";
@@ -2417,23 +2543,56 @@ const WH_PUBLIC=[
 let whRunning=false,whRAF=null,whTheta=0.2,whSpeed=WH_SPEED,whTarget=WH_SPEED,whLast=0,whSel=-1,whFilter=-1,whDrawersBuilt=false,whMode="heliocentric";
 const WH_MODE_COPY={heliocentric:{name:"日心說",quote:"世界不繞著我轉，但我仍然在其中。",hint:"太陽是暫時的共同中心。"},geocentric:{name:"地心說",quote:"我站在哪裡，世界就從哪裡開始。",hint:"觀看者的位置成為暫時的中心。"}};
 function setWhMode(mode,announce=true){whMode=mode;const v=$("#wheelview"),copy=WH_MODE_COPY[mode];v.classList.toggle("geo",mode==="geocentric");$("#wh-mode-quote").textContent=copy.quote;$("#wh-mode-toggle").textContent="切換至"+(mode==="geocentric"?"日心說":"地心說");$("#wh-mode-toggle").setAttribute("aria-label","目前是"+copy.name+"，切換觀看框架");if(announce)toast(copy.name+"："+copy.hint,2800)}
-function whBooks(){const own=state.books.filter(b=>(state.annotations[b.id]||[]).length>0||(b.cards||[]).length>0||b.loan);return own.length?own:WH_PUBLIC}
+function whBooks(){const own=state.books.filter(b=>b.visibility==="public"&&!b.withdrawn&&!b.loan);return own.length?own:WH_PUBLIC}
 function whCabinBooks(i){const all=whBooks();return [all[i%all.length]]}
 function whReason(b){if(b.cat)return b.cat;const a=(state.annotations[b.id]||[]).length,c=(b.cards||[]).length;const bits=[];if(a)bits.push("批注 ×"+a);if(c)bits.push("歸還卡 ×"+c);if(b.loan)bits.push("借出中");return bits.join(" · ")||"公共資料 · 尚未分類"}
-function updateWhPrompt(){const label=$(".wh-label");if(whFilter>=0){label.textContent="正在觀測："+WH_CAB_NAME[whFilter]+" · "+WH_CAB_TOPIC[whFilter];$("#wh-filter-clear").hidden=false}else{label.textContent="選一顆星，讀一頁大家的資料";$("#wh-filter-clear").hidden=true}}
-function applyWhFilter(i){whFilter=i;whSel=-1;whTarget=WH_SPEED;$("#wheel-panel").hidden=true;$("#wh-wheel-art").classList.remove("focus");document.querySelectorAll(".cabin").forEach(c=>c.classList.remove("sel"));document.querySelectorAll(".wh-drawer").forEach((d,n)=>d.classList.toggle("open",n===i));updateWhPrompt();whLayout();toast("星圖已定位："+WH_CAB_NAME[i]+" · "+WH_CAB_TOPIC[i],2600)}
+/* 標語膠囊：報完訊息就退場，不站在輪子前面擋風景 */
+let whLabelT=null;
+function whLabelShow(ms){const l=$(".wh-label");l.classList.remove("ghost");clearTimeout(whLabelT);if(ms)whLabelT=setTimeout(()=>l.classList.add("ghost"),ms)}
+function whLabelHide(){clearTimeout(whLabelT);$(".wh-label").classList.add("ghost")}
+function updateWhPrompt(){const label=$(".wh-label");if(whFilter>=0){label.textContent="正在觀測："+WH_CAB_NAME[whFilter]+" · "+WH_CAB_TOPIC[whFilter];$("#wh-filter-clear").hidden=false;whLabelShow(0)}else{label.textContent="選一顆星，讀一頁大家的資料";$("#wh-filter-clear").hidden=true;whLabelShow(3200)}}
+function applyWhFilter(i){whFilter=i;whSel=-1;whTarget=WH_SPEED;$("#wheel-panel").hidden=true;$("#btn-wheel-back").classList.remove("away");$("#wh-wheel-art").classList.remove("focus");document.querySelectorAll(".cabin").forEach(c=>c.classList.remove("sel"));document.querySelectorAll(".wh-drawer").forEach((d,n)=>d.classList.toggle("open",n===i));updateWhPrompt();whLayout();toast("星圖已定位："+WH_CAB_NAME[i]+" · "+WH_CAB_TOPIC[i],2600)}
 function clearWhFilter(){whFilter=-1;document.querySelectorAll(".wh-drawer").forEach(d=>d.classList.remove("open"));updateWhPrompt();whLayout();toast("星圖恢復完整軌道。",2200)}
 function buildDrawers(){if(whDrawersBuilt)return;whDrawersBuilt=true;const pad=$("#wh-drawers-pad");for(let i=0;i<WH_DRAWER_WORDS.length;i++){const d=document.createElement("button");d.className="wh-drawer";d.textContent=WH_DRAWER_WORDS[i];d.setAttribute("aria-label","星圖索引："+d.textContent);d.addEventListener("click",()=>{applyWhFilter(i)});pad.appendChild(d)}}
-function buildCabins(){const root=$("#wh-cabins");if(root.children.length)return;for(let i=0;i<WH_N;i++){const b=document.createElement("button");b.className="cabin";b.id="cabin"+i;b.dataset.i=i;b.setAttribute("aria-label","第"+(i+1)+"節車廂");b.innerHTML='<span class="cab-window"></span><span class="cab-page"></span><span class="cab-tag">'+WH_CAB_NAME[i]+'</span>';b.addEventListener("click",()=>{whFilter=-1;updateWhPrompt();document.querySelectorAll(".wh-drawer").forEach(d=>d.classList.remove("open"));whSel=i;whTarget=0;document.querySelectorAll(".cabin").forEach(c=>c.classList.remove("sel"));b.classList.add("sel");$("#wh-wheel-art").classList.add("focus");whLayout();renderWheelPanel(i)});root.appendChild(b)}const spokes=$("#wh-spokes");for(let i=0;i<WH_N;i++){const x=document.createElement("i");x.style.transform="translateX(-50%) rotate("+(i*360/WH_N)+"deg)";spokes.appendChild(x)}$("#wh-filter-clear").addEventListener("click",clearWhFilter)}
+function buildCabins(){const root=$("#wh-cabins");if(root.children.length)return;for(let i=0;i<WH_N;i++){const b=document.createElement("button");b.className="cabin";b.id="cabin"+i;b.dataset.i=i;b.setAttribute("aria-label","第"+(i+1)+"節車廂");b.innerHTML='<span class="cab-window"></span><span class="cab-page"></span><span class="cab-tag">'+WH_CAB_NAME[i]+'</span>';b.addEventListener("click",()=>{whFilter=-1;updateWhPrompt();whLabelHide();document.querySelectorAll(".wh-drawer").forEach(d=>d.classList.remove("open"));whSel=i;whTarget=0;document.querySelectorAll(".cabin").forEach(c=>c.classList.remove("sel"));b.classList.add("sel");$("#wh-wheel-art").classList.add("focus");whLayout();renderWheelPanel(i)});root.appendChild(b)}const spokes=$("#wh-spokes");for(let i=0;i<WH_N;i++){const x=document.createElement("i");x.style.transform="translateX(-50%) rotate("+(i*360/WH_N)+"deg)";spokes.appendChild(x)}$("#wh-filter-clear").addEventListener("click",clearWhFilter)}
 function whUpdateTags(){for(let i=0;i<WH_N;i++){const b=whCabinBooks(i)[0];$("#cabin"+i+" .cab-tag").textContent=WH_CAB_NAME[i]+" · "+WH_CAB_TOPIC[i]}}
 function whLayout(){const stage=$("#wh-stage"),r=stage.getBoundingClientRect();if(r.width<10)return;const cx=r.width*.5,cy=r.height*.48,rx=Math.min(r.width*.37,260),ry=Math.min(r.height*.37,260);for(let i=0;i<WH_N;i++){const a=whTheta+i*(Math.PI*2/WH_N),x=cx+rx*Math.cos(a),y=cy+ry*Math.sin(a),depth=(Math.sin(a)+1)/2,chosen=whSel===i,match=whFilter<0||whFilter===i,s=(.72+.28*depth)*((chosen||match&&whFilter>=0)?1.1:1),el=$("#cabin"+i);el.style.transform="translate("+(x-el.offsetWidth/2)+"px,"+(y-el.offsetHeight/2)+"px) scale("+s+")";el.style.zIndex=chosen?12:(match&&whFilter>=0?10:(depth>.5?6:3));el.style.opacity=whSel>=0?(chosen?1:.34+.22*depth):(whFilter>=0?(match?1:.18):.64+.36*depth)}if(whSel>=0){$("#wh-wheel-art").style.setProperty("--ray-angle",(whSel*360/WH_N)+"deg")}const rot=whTheta*180/Math.PI;$("#wh-wheel-art").style.transform="translate(-50%,-50%) rotate("+rot+"deg)"}
 function whLoop(t){if(!whRunning)return;if(!whLast)whLast=t;const dt=Math.min(.05,(t-whLast)/1000);whLast=t;whSpeed+=(whTarget-whSpeed)*Math.min(1,dt*3.2);if(Math.abs(whTarget-whSpeed)<.002)whSpeed=whTarget;whTheta+=whSpeed*dt;whLayout();whRAF=requestAnimationFrame(whLoop)}
-function renderWheelPanel(i){const books=whCabinBooks(i),b=books[0];$("#wp-title").textContent=WH_CAB_NAME[i]+" · "+WH_CAB_TOPIC[i];$("#wp-intro").textContent="車廂停下來了。這不是行星的答案，而是一種觀看世界的方法。";const list=$("#wp-list");list.innerHTML="";const row=document.createElement("button");row.className="wp-book";row.innerHTML='<div class="t">《'+esc(b.title||"未命名的書")+'》</div><div class="r">'+esc(whReason(b))+'</div><div class="r">'+esc(b.text||"這本書還沒有留下文字，但有人碰過它。")+'</div>';row.addEventListener("click",()=>b.id?openRead(b.id):toast("這是公共資料的試閱頁，之後可以換成使用者投稿。",3000));list.appendChild(row);$("#wheel-panel").hidden=false}
+const PUB_NOTES=["這個位置，我也站過。","從這裡看出去，雨是斜的。","路過，借看了一下世界。","這一頁，我讀了兩次。"];
+function renderWheelPanel(i){const books=whCabinBooks(i),b=books[0];$("#wp-title").textContent=WH_CAB_NAME[i]+" · "+WH_CAB_TOPIC[i];$("#wp-intro").textContent="車廂停下來了。這不是行星的答案，而是一種觀看世界的方法。";const list=$("#wp-list");list.innerHTML="";const own=!!b.id;
+  const row=document.createElement("button");row.className="wp-book";
+  if(own){
+    const dt=new Date(b.pubDate||b.ts),pad=n=>String(n).padStart(2,"0");
+    const exc=(b.content||"").slice(0,80);
+    row.innerHTML='<div class="wp-badge">公共投稿</div><div class="t">《'+esc(b.title||"未命名的書")+'》</div><div class="r">'+esc("投稿於 "+dt.getFullYear()+"."+pad(dt.getMonth()+1)+"."+pad(dt.getDate()))+'</div><div class="r">'+esc(exc)+((b.content||"").length>80?"……":"")+'</div>';
+  }else{
+    row.innerHTML='<div class="t">《'+esc(b.title||"未命名的書")+'》</div><div class="r">'+esc(whReason(b))+'</div><div class="r">'+esc(b.text||"這本書還沒有留下文字，但有人碰過它。")+'</div>';
+  }
+  row.addEventListener("click",()=>own?openRead(b.id):toast("這是公共資料的試閱頁，之後可以換成使用者投稿。",3000));
+  list.appendChild(row);
+  if(own){
+    const act=document.createElement("div");act.className="wp-acts";
+    const mk=(t,fn)=>{const x=document.createElement("button");x.type="button";x.className="wp-act";x.textContent=t;x.addEventListener("click",e=>{e.stopPropagation();fn()});act.appendChild(x)};
+    mk("收藏這個觀看位置",()=>toast("這個位置已經收進你的檔案。"));
+    if(b.allowAnnotations)mk("留下紙邊批注",()=>{
+      if(!state.annotations[b.id])state.annotations[b.id]=[];
+      if(state.annotations[b.id].length>=6){toast("紙邊寫滿了，翻頁再說。");return}
+      state.annotations[b.id].push({by:"路過的讀者",text:PUB_NOTES[Math.floor(Math.random()*PUB_NOTES.length)],ts:Date.now()});
+      save();toast("有路過的讀者在《"+b.title+"》的紙邊留了字。");
+    });
+    if(b.allowReplies)mk("提出不同觀看",()=>toast("你的不同觀看，暫時留在這裡。"));
+    mk("暫時保留",()=>toast("這頁先夾在這裡，下次再來。"));
+    list.appendChild(act);
+  }
+  $("#wheel-panel").hidden=false;$("#btn-wheel-back").classList.add("away")}
 function openWheel(){buildDrawers();buildCabins();whUpdateTags();updateWhPrompt();$("#wheelview").hidden=false;setWhMode(Math.random()<.5?"heliocentric":"geocentric",false);if(reduced){whLayout()}else{whRunning=true;whLast=0;cancelAnimationFrame(whRAF);whRAF=requestAnimationFrame(whLoop)}}
 $("#wh-mode-toggle").addEventListener("click",()=>setWhMode(whMode==="geocentric"?"heliocentric":"geocentric"));
-$("#wp-close").addEventListener("click",()=>{$("#wheel-panel").hidden=true;whSel=-1;whTarget=WH_SPEED;$("#wh-wheel-art").classList.remove("focus");document.querySelectorAll(".cabin").forEach(c=>c.classList.remove("sel"));whLayout()});
+$("#wp-close").addEventListener("click",()=>{$("#wheel-panel").hidden=true;whSel=-1;whTarget=WH_SPEED;$("#wh-wheel-art").classList.remove("focus");document.querySelectorAll(".cabin").forEach(c=>c.classList.remove("sel"));$("#btn-wheel-back").classList.remove("away");updateWhPrompt();whLayout()});
 $("#btn-wheel").addEventListener("click",()=>{if(passBusy)return;playPassage(false,()=>{$("#library").hidden=true;openWheel();toast("出洞了。檢索輪慢慢轉，把公共資料送到面前。",3600)})});
-$("#btn-wheel-back").addEventListener("click",()=>{if(passBusy)return;$("#wheel-panel").hidden=true;whSel=-1;whTarget=WH_SPEED;document.querySelectorAll(".cabin").forEach(c=>c.classList.remove("sel"));playPassage(true,()=>{$("#wheelview").hidden=true;whRunning=false;cancelAnimationFrame(whRAF);$("#library").hidden=false;renderCaveBooks();toast("回到書穴。燈還亮著，他還在讀。")})});
+$("#btn-wheel-back").addEventListener("click",()=>{if(passBusy)return;$("#wheel-panel").hidden=true;$("#btn-wheel-back").classList.remove("away");whSel=-1;whTarget=WH_SPEED;document.querySelectorAll(".cabin").forEach(c=>c.classList.remove("sel"));playPassage(true,()=>{$("#wheelview").hidden=true;whRunning=false;cancelAnimationFrame(whRAF);$("#library").hidden=false;renderCaveBooks();toast("回到書穴。燈還亮著，他還在讀。")})});
+$("#wh-letter").addEventListener("click",()=>{$("#letter-overlay").hidden=false});
+$("#letter-close").addEventListener("click",()=>{$("#letter-overlay").hidden=true});
+$("#letter-overlay").addEventListener("click",e=>{if(e.target.id==="letter-overlay")$("#letter-overlay").hidden=true});
 addEventListener("resize",()=>{if(!$("#wheelview").hidden)whLayout()});
 /* ================= 點當：淋濕的東西 ================= */
 const WET=[
@@ -2768,8 +2927,10 @@ function noteLoop(){
   clearInterval(noteTimer);
   noteTimer=setInterval(()=>{
     if(state.friends.length===0||state.books.length===0)return;
+    const pool=state.books.filter(b=>!b.loan&&!b.withdrawn&&(b.visibility==="room"||b.visibility==="public")&&b.allowAnnotations);
+    if(!pool.length)return;
     const f=FRIENDS.filter(x=>state.friends.includes(x.id))[Math.floor(Math.random()*state.friends.length)];
-    const b=state.books[Math.floor(Math.random()*state.books.length)];
+    const b=pool[Math.floor(Math.random()*pool.length)];
     const text=f.notes[Math.floor(Math.random()*f.notes.length)];
     if(!state.annotations[b.id])state.annotations[b.id]=[];
     if(state.annotations[b.id].length>=6)return;

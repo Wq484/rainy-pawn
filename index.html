@@ -1150,6 +1150,39 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
 .wp-act{font-family:var(--book-font);font-size:11px;letter-spacing:.08em;padding:6px 12px;border-radius:999px;border:1px solid rgba(166,232,255,.35);background:rgba(3,23,49,.6);color:#dff7ff;cursor:pointer}
 .wp-act:hover{border-color:rgba(255,214,122,.7)}
 .wp-act.warn{border-color:#d07a5a;color:#f2b79b}
+/* ---- 書內工具：目錄與搜尋 ---- */
+.book-tools{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px;padding:8px 0;border-block:1px solid rgba(232,224,210,.12)}
+.book-tools button,.book-tools input{min-height:38px;border:1px solid rgba(232,224,210,.22);border-radius:8px;background:rgba(232,224,210,.05);color:var(--paper);padding:7px 11px;font:inherit}
+.book-tools input{flex:1;min-width:140px}
+.book-tools input::placeholder{color:rgba(232,224,210,.35)}
+.book-toc{margin:0 0 18px;padding:12px 14px;border-left:2px solid var(--lamp);background:rgba(232,224,210,.05);line-height:1.8}
+.book-toc[hidden]{display:none}
+.toc-title{color:var(--lamp);margin-bottom:5px}
+.toc-item{display:block;border:0;background:none;color:#d8cdbb;font:inherit;cursor:pointer;text-align:left;width:100%;padding:2px}
+.toc-item:hover{color:var(--lamp)}
+.toc-item.level-2{padding-left:14px}
+.toc-item.level-3{padding-left:28px}
+.read-search-result{color:var(--paper-dim);font-size:12px;min-height:1em}
+.read-text h1,.read-text h2,.read-text h3{font-weight:normal;color:#f0dfbd;scroll-margin-top:16px}
+.read-text p{margin:0 0 12px}
+.read-text ul{padding-left:25px;margin:0 0 12px}
+.read-text blockquote{margin:13px 0;padding:8px 14px;border-left:2px solid #7fa7c9;color:#b9c8d4;background:rgba(127,167,201,.07);font-style:italic}
+/* ---- 編輯區格式小抄 ---- */
+.format-help-btn{margin-top:8px;min-height:34px;border:1px dashed rgba(232,224,210,.3);border-radius:8px;background:transparent;color:var(--paper-dim);padding:5px 12px;font:inherit;font-size:12px;letter-spacing:.08em;cursor:pointer;align-self:flex-start}
+.format-help-btn:hover{color:var(--lamp);border-color:rgba(201,168,106,.5)}
+.format-help{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px}
+.format-help[hidden]{display:none}
+.format-help code{border:1px solid rgba(232,224,210,.2);border-radius:6px;padding:3px 9px;font-size:12px;color:rgba(232,224,210,.75);background:rgba(232,224,210,.04)}
+/* ---- 「？」問題式哲學索引 ---- */
+.idea-index{margin-top:24px;padding-top:18px;border-top:1px solid rgba(232,224,210,.12)}
+.idea-index h3{font-family:var(--book-font);font-size:18px;font-weight:normal;letter-spacing:.1em;color:var(--lamp)}
+.idea-intro{color:var(--paper-dim);font-size:13px;line-height:1.7}
+.idea-item{border-bottom:1px solid rgba(232,224,210,.1);padding:10px 0}
+.idea-item summary{cursor:pointer;color:var(--paper);font-family:var(--book-font);font-size:15px;line-height:1.6}
+.idea-item[open] summary{color:var(--lamp)}
+.idea-answer{padding:10px 4px 3px 18px;color:#d8d0c2;font-size:14px;line-height:1.85}
+.idea-answer p{margin:0 0 10px}
+.idea-answer small{display:block;color:var(--paper-dim);font-size:11px;line-height:1.7;border-left:1px solid rgba(232,224,210,.2);padding-left:10px}
 </style>
 </head>
 <body>
@@ -1586,6 +1619,10 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
     <div class="write-body">
       <input id="note-title" type="text" maxlength="20" placeholder="替這本書取個名字" aria-label="書名">
       <textarea id="note-content" placeholder="雨聲當背景，想到什麼就寫。寫完裝訂起來，會變成書架上的一本書。" aria-label="筆記內容"></textarea>
+      <button id="btn-format-help" type="button" class="format-help-btn">? 格式小抄</button>
+      <div id="format-help" class="format-help" hidden>
+        <code># 大標題</code><code>## 章節</code><code>### 小節</code><code>- 條列</code><code>&gt; 引用</code>
+      </div>
     </div>
     <div class="bind-opts" id="bind-opts">
       <div class="bo-q">這本筆記要放在哪裡？</div>
@@ -1615,6 +1652,12 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
     <div class="read-body">
       <h3 id="read-title"></h3>
       <div class="read-meta" id="read-meta"></div>
+      <div class="book-tools" id="book-tools" hidden>
+        <button id="btn-toc" type="button">本書目錄</button>
+        <input id="book-search" type="search" placeholder="在本書中搜尋……" aria-label="搜尋本書">
+      </div>
+      <nav id="book-toc" class="book-toc" aria-label="本書目錄" hidden></nav>
+      <div id="read-search-result" class="read-search-result" aria-live="polite"></div>
       <div class="read-text" id="read-text"></div>
       <div class="notes-zone" id="read-notes" hidden>
         <h4>紙邊批注</h4>
@@ -1711,6 +1754,20 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
       <p><b>彩虹與陣雨</b>：雨下久了，遠山會慢慢變綠；偶爾雨歇，彩虹會出來一下。陣雨來的時候是踩水時間，把整場水窪踩完有獎勵。</p>
       <p><b>天亮</b>：一直寫，窗外的天色會慢慢泛白。寫到日出，就該睡了。</p>
       <p>書架上的每一本都可以點開重讀，匯出成 <span class="k">.md</span>、<span class="k">Word</span> 或 <span class="k">PDF</span> 帶走（PDF 會打開列印視窗，選「存成 PDF」）。資料存在這個瀏覽器裡（本機儲存，不會同步到其他裝置）。</p>
+      <section class="idea-index" aria-labelledby="idea-index-title">
+        <h3 id="idea-index-title">想知道這裡為什麼這樣設計？</h3>
+        <p class="idea-intro">有些問題沒有唯一答案，但可以帶我們走得更遠。</p>
+        <details class="idea-item"><summary>為什麼叫「書穴」？</summary><div class="idea-answer">
+          <p>書穴借用了柏拉圖《理想國》第七卷的洞穴寓言。在那個故事裡，有些人只能看見牆上的影子，並把影子當成世界本身。</p>
+          <p>書穴不只是安靜讀書的地方，也像是一種有限的觀看：我們在自己的位置裡理解世界，卻不一定看見了全部。從書穴走出去，不代表立刻得到唯一的真理，只是開始看見原本看不見的東西。</p>
+          <small>概念出處：柏拉圖《理想國》第七卷的「洞穴寓言」。這裡將它轉化為從個人書穴走向公共觀看空間的互動路徑。</small>
+        </div></details>
+        <details class="idea-item"><summary>為什麼要走過一段黑暗？</summary><div class="idea-answer"><p>離開熟悉的觀看，不一定會立刻變得清楚。那段黑不是空白，而是從一種理解走向另一種理解時，必須經過的不確定。</p></div></details>
+        <details class="idea-item"><summary>為什麼外面是摩天輪？</summary><div class="idea-answer"><p>走出書穴後不是抵達所有人都同意的答案，而是進入公共的真理論辯廳。摩天輪會轉，觀看的位置也會轉；不同的人看見同一個世界的不同方向，沒有哪一節車廂能永遠佔據唯一中心。</p></div></details>
+        <details class="idea-item"><summary>為什麼叫「切片」？</summary><div class="idea-answer"><p>延續論裡面，不是一個物體本身可以有很多切片嗎？我覺得它有點像雨天的水窪：每一個時刻的水面，都像同一個水窪在時間裡留下的一片。雨落下來、光線改變、有人走過，水面映出的東西也會跟著改變。</p><p>那些改變，是某個時間裡水面和觀看位置形成的性質，又不一定是水窪本身的全部性質。所以我們看到的，可能都只是帶著時間關係的真理性質，而不是真理本身。</p><small>概念參照：延續論／四維論（perdurantism）與時間部分（temporal parts）。這裡是 App 的創作性轉化。</small></div></details>
+        <details class="idea-item"><summary>為什麼季節和節日可以自由搭配？</summary><div class="idea-answer"><p>因為我們每天都可能經驗不同時間的錯位。</p><p>月曆翻到冬天，天氣卻可能還很熱；聖誕節到了，卻不一定會有雪。季節是身體和環境正在經歷的氣候時間，節日則是文化和人們共同期待的時間。</p><p>它們有時候重疊，有時候錯開。有些節日先來到屋裡，季節卻還留在窗外。</p><p>所以秋天掛上聖誕燈，不是設定錯誤，而是兩種時間在同一個房間相遇。</p><small>nation、country 和 state 都與共同體或國家有關，但指向的層面並不完全相同。季節和節日也是如此：它們有重疊的邊界，卻不能彼此直接替換。</small></div></details>
+        <details class="idea-item"><summary>為什麼文章沿切線分離，批注可留下？</summary><div class="idea-answer"><p>作者可以讓自己的文章離開公共星軌，因為作者有權收回自己交出去的原稿。但曾經留下的批注可能是另一個人自己的文字。文章離開了，紙條不一定要一起消失。</p></div></details>
+      </section>
     </div>
   </div>
 </div>
@@ -2262,6 +2319,28 @@ function checkDawn(before,now){
 }
 
 /* ================= 閱讀 ================= */
+/* Markdown-lite：編輯存原文，閱讀才渲染（#、##、###、-、>） */
+function slug(s,i){return "book-heading-"+i+"-"+String(s).toLowerCase().replace(/[^一-鿿\w]+/g,"-")}
+function parseMd(raw){
+  const lines=String(raw||"").replace(/\r\n?/g,"\n").split("\n"),html=[],outline=[];let para=[],list=[],n=0;
+  const flushP=()=>{if(para.length){html.push("<p>"+para.map(esc).join("<br>")+"</p>");para=[]}};
+  const flushL=()=>{if(list.length){html.push("<ul>"+list.map(x=>"<li>"+esc(x)+"</li>").join("")+"</ul>");list=[]}};
+  lines.forEach(line=>{const h=line.match(/^(#{1,3})\s+(.+)$/),li=line.match(/^\s*-\s+(.+)$/),q=line.match(/^\s*>\s?(.*)$/);
+    if(h){flushP();flushL();const level=h[1].length,title=h[2].trim(),id=slug(title,n++);outline.push({level,title,id});html.push(`<h${level} id="${id}">${esc(title)}</h${level}>`)}
+    else if(li){flushP();list.push(li[1].trim())}
+    else if(q){flushP();flushL();html.push("<blockquote>"+esc(q[1])+"</blockquote>")}
+    else if(!line.trim()){flushP();flushL()} else {flushL();para.push(line)}
+  });flushP();flushL();return {html:html.join(""),outline};
+}
+function renderBookReader(book){
+  const parsed=parseMd(book.content||""),tools=$("#book-tools"),toc=$("#book-toc"),search=$("#book-search"),result=$("#read-search-result");
+  $("#read-text").innerHTML=parsed.html||"<p>這本書還沒有內容。</p>";tools.hidden=false;search.value="";result.textContent="";
+  toc.innerHTML="";const btn=$("#btn-toc");
+  if(parsed.outline.length<2){toc.hidden=true;btn.hidden=true}else{btn.hidden=false;const title=document.createElement("div");title.textContent="本書目錄";title.className="toc-title";toc.appendChild(title);parsed.outline.forEach(item=>{const x=document.createElement("button");x.type="button";x.className="toc-item level-"+item.level;x.textContent=item.title;x.onclick=()=>document.getElementById(item.id)?.scrollIntoView({behavior:"smooth"});toc.appendChild(x)});toc.hidden=false}
+  btn.onclick=()=>toc.hidden=!toc.hidden;
+  search.oninput=()=>{const term=search.value.trim().toLowerCase();if(!term){result.textContent="";return}const count=(book.content||"").toLowerCase().split(term).length-1;result.textContent=count?`本書找到 ${count} 個位置`:"本書找不到這個詞。"};
+}
+$("#btn-format-help").onclick=()=>{const x=$("#format-help");x.hidden=!x.hidden};
 let readingId=null;
 function openRead(id){
   const b=state.books.find(x=>x.id===id);if(!b)return;
@@ -2271,7 +2350,7 @@ function openRead(id){
   $("#read-meta").textContent=d.getFullYear()+" 年 "+(d.getMonth()+1)+" 月 "+d.getDate()+" 日裝訂 · "+b.words+" 字"
     +(b.listed?(b.loan?" · 借出中（"+b.loan.by+"）":" · 在舊雨書盒"):"")
     +(b.visibility==="public"&&!b.withdrawn?" · 公共投稿中":"");
-  $("#read-text").textContent=b.content;
+  renderBookReader(b);
   renderNotes(id);
   renderCards(b);
   const isPub=b.visibility==="public"&&!b.withdrawn;

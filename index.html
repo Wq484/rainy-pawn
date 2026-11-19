@@ -548,31 +548,112 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
 .pass-skip{position:absolute;left:0;right:0;bottom:calc(18px + env(safe-area-inset-bottom));z-index:2;
   text-align:center;font-size:11px;letter-spacing:.26em;color:rgba(226,232,240,.3);
   font-family:var(--book-font);pointer-events:none;animation:slitGlow 3.4s ease-in-out infinite}
-/* ===== 臥室（骨架） ===== */
+/* ===== 臥室 v99：五色配色（Manus）——Slate 牆雨夜 / Earth Brown 木家具地毯 / Beige Sand 床品 / Dark Pine 沙發 / Charcoal 地板邊框，不用純黑與暗紅 ===== */
 .broom{position:fixed;inset:0;z-index:14;overflow:hidden;
-  background:linear-gradient(180deg,#1b2233 0%,#161b29 58%,#100e14 58.2%,#171310 100%)}
+  background:linear-gradient(180deg,#26313c 0%,#212a34 58%,#3c3c3c 58.2%,#333333 100%)}
 .broom[hidden]{display:none}
-.bwin{position:absolute;left:8%;top:12%;width:34%;height:34%;border:6px solid #2c2418;border-radius:4px;
-  background:linear-gradient(180deg,#0d1626,#131f33);box-shadow:inset 0 0 30px rgba(0,0,0,.6),0 6px 16px rgba(0,0,0,.5);overflow:hidden}
+/* 小窗戶——臥室不用大窗，跟客廳分開 */
+.bwin{position:absolute;left:8%;top:9%;width:22%;height:19%;border:5px solid #3c3c3c;border-radius:4px;
+  background:linear-gradient(180deg,#1c2630,#283543);box-shadow:inset 0 0 30px rgba(0,0,0,.5),0 6px 16px rgba(0,0,0,.4);overflow:hidden}
 .bwin i{position:absolute;top:-20%;width:2px;height:140%;
   background:linear-gradient(180deg,transparent,rgba(150,180,220,.5),transparent);
   animation:bfall 1.1s linear infinite}
 @keyframes bfall{to{transform:translateY(60%)}}
-.bbed{position:absolute;right:8%;bottom:10%;width:52%;height:30%;
-  background:linear-gradient(180deg,#4a3626,#33241a);border-radius:8px 8px 4px 4px;
-  box-shadow:0 10px 24px rgba(0,0,0,.55)}
-.bbed::before{content:"";position:absolute;left:6%;top:10%;width:30%;height:34%;border-radius:6px;
-  background:linear-gradient(180deg,#d8cfc0,#b8ab96)}
-.bbed::after{content:"";position:absolute;right:0;bottom:0;width:64%;height:86%;border-radius:10px 10px 4px 4px;
-  background:linear-gradient(160deg,#5b4a6e,#3c2f4a)}
+/* 壁掛冷氣——台灣房間的標配，掛在電視上方的牆 */
+.bac{position:absolute;left:5%;top:29%;width:23%;height:3.6%;z-index:2;pointer-events:none;border-radius:3px;
+  background:linear-gradient(180deg,#c8ced4,#9aa2aa);
+  box-shadow:0 3px 8px rgba(0,0,0,.5),inset 0 -2px 3px rgba(0,0,0,.18)}
+.bac::after{content:"";position:absolute;left:6%;bottom:18%;width:88%;height:16%;border-radius:2px;
+  background:rgba(40,48,56,.55);
+  box-shadow:-4px -8px 0 -6px rgba(120,220,160,.8)}
+/* 電視掛床對面的牆——關著的螢幕只有一點點暗光 */
+.btv{position:absolute;left:5%;top:33%;width:23%;height:12%;z-index:2;pointer-events:none;border-radius:3px;
+  background:linear-gradient(160deg,#2e3438,#1f2427);
+  border:2px solid #16191c;
+  box-shadow:0 5px 14px rgba(0,0,0,.5),0 0 20px rgba(140,165,185,.12)}
+.btv::before{content:"";position:absolute;left:8%;top:10%;width:50%;height:34%;border-radius:2px;
+  background:linear-gradient(135deg,rgba(170,195,220,.09),transparent 70%)}
+/* 雙人床——上下長，兩顆枕頭，Earth Brown 木架 */
+.bbed{position:absolute;right:6%;bottom:6%;width:44%;height:46%;z-index:4;padding:0;text-align:left;
+  background:linear-gradient(180deg,#5e4b3b,#453729);border-radius:8px 8px 4px 4px;
+  box-shadow:0 10px 24px rgba(0,0,0,.45)}
+/* 左枕頭，橫的長方形，壓在被子上緣 */
+.bbed::before{content:"";position:absolute;left:13%;top:5%;width:33%;height:9%;z-index:2;border-radius:16%/44%;
+  background:linear-gradient(180deg,#ece6d8,#d6cdb8);
+  box-shadow:0 2px 5px rgba(0,0,0,.28),inset 0 -3px 5px rgba(94,75,59,.18)}
+/* 右枕頭 */
+.bpil2{position:absolute;left:54%;top:5%;width:33%;height:9%;z-index:2;border-radius:16%/44%;pointer-events:none;
+  background:linear-gradient(180deg,#ece6d8,#d6cdb8);
+  box-shadow:0 2px 5px rgba(0,0,0,.28),inset 0 -3px 5px rgba(94,75,59,.18)}
+/* 被子是 Beige Sand——被燈照到的生活物件，帶柔和布料摺痕 */
+.bbed::after{content:"";position:absolute;left:3%;top:12%;width:94%;height:82%;z-index:1;
+  border-radius:6px 6px 22% 22%/6px 6px 7% 7%;
+  background:linear-gradient(180deg,rgba(60,60,60,.26),transparent 10%),
+    repeating-linear-gradient(178deg,transparent 0 9%,rgba(94,75,59,.09) 9.5% 10.5%,transparent 11% 19%),
+    linear-gradient(165deg,#e1dbc9,#c4b9a3);
+  box-shadow:inset 0 -8px 14px rgba(60,60,60,.22)}
+.bmattress{position:absolute;left:2%;top:2%;width:96%;height:94%;z-index:0;border-radius:6px;pointer-events:none;
+  background:repeating-linear-gradient(90deg,#b8ad97 0 7px,#a89d87 7px 14px)}
+/* 隆起與人影都不要——躺下只有被子掀動（v100：頭跟蠶蛹一起處決了） */
+/* 躺下時被子自己慢慢掀動——沒有人影，只有被子 */
+.bbed.resting::after{animation:blanketToss 5.2s ease-in-out infinite;transform-origin:50% 100%}
+@keyframes blanketToss{0%,100%{transform:rotate(0deg) scale(1)}30%{transform:rotate(-.6deg) scale(1.012,1.02)}55%{transform:rotate(.4deg) scale(1.005,1.03)}78%{transform:rotate(-.2deg) scale(1.01,1.015)}}
+@media(prefers-reduced-motion:reduce){.bbed.resting::after{animation:none}}
+/* 臥室的暗度層與床頭燈光池 v93 */
+.b-dimlayer{position:absolute;inset:0;z-index:7;pointer-events:none;background:#14181e;opacity:.12;transition:opacity .6s}
+.broom.dim .b-dimlayer{opacity:.4}
+.broom.resting .b-dimlayer{opacity:.5}
+.broom.dim.resting .b-dimlayer{opacity:.55}
+.b-lamppool{position:absolute;inset:0;z-index:8;pointer-events:none;
+  background:radial-gradient(ellipse 34% 24% at 43% 50%,rgba(240,190,110,.26),rgba(240,190,110,.08) 46%,transparent 72%)}
 .bdoor{top:auto;bottom:8%}
-.b-lamp{position:absolute;right:16%;bottom:32%;width:6%;z-index:6;pointer-events:none}
-.b-lamp svg{width:100%;height:auto;display:block;filter:drop-shadow(0 0 10px rgba(240,190,110,.35))}
-.b-clock{position:absolute;left:52%;top:14%;width:7%;z-index:6;pointer-events:none}
+.bheadboard{position:absolute;left:-2%;top:-8%;width:104%;height:14%;z-index:0;border-radius:4px 4px 0 0;
+  background:linear-gradient(180deg,#5e4b3b,#453729);box-shadow:0 3px 8px rgba(0,0,0,.4);pointer-events:none}
+/* 床頭櫃站在床頭左側，Earth Brown 木櫃 */
+.b-table{position:absolute;left:37%;top:45%;width:12%;height:12%;z-index:5;border-radius:3px;pointer-events:none;
+  background:linear-gradient(180deg,transparent 0 31%,rgba(60,60,60,.3) 31% 34%,transparent 34% 64%,rgba(60,60,60,.3) 64% 67%,transparent 67%),linear-gradient(180deg,#5e4b3b,#443629);
+  box-shadow:0 5px 12px rgba(0,0,0,.45)}
+.b-table::before{content:"";position:absolute;left:14%;top:-16%;width:36%;height:16%;border-radius:1px;
+  background:linear-gradient(90deg,#7a4a3a 0 18%,#c9b48a 18% 100%);box-shadow:0 1px 3px rgba(0,0,0,.5)}
+.b-table::after{content:"";position:absolute;left:45%;top:12%;width:10%;padding-top:10%;border-radius:1px;
+  background:rgba(201,180,138,.75);box-shadow:0 24px 0 rgba(201,180,138,.75),0 48px 0 rgba(201,180,138,.55)}
+.bwin-light{position:absolute;left:10%;top:28%;width:22%;height:26%;z-index:2;pointer-events:none;
+  background:linear-gradient(160deg,rgba(150,180,220,.07),transparent 62%);transform:skewX(-10deg)}
+/* 沙發——深松綠布面，背靠下牆，面對床跟電視 */
+.bsofa{position:absolute;left:6%;bottom:3%;width:36%;height:13%;z-index:4;pointer-events:none;border-radius:9px;
+  background:linear-gradient(180deg,#33503a,#24392a);
+  box-shadow:0 6px 14px rgba(0,0,0,.5),inset 0 3px 5px rgba(255,255,255,.05)}
+.bsofa::before{content:"";position:absolute;left:3%;bottom:6%;width:94%;height:30%;border-radius:7px;
+  background:linear-gradient(180deg,#2a4331,#1f3126);
+  box-shadow:inset 0 2px 4px rgba(0,0,0,.35)}
+.bsofa::after{content:"";position:absolute;left:50%;top:12%;width:2px;height:52%;
+  background:rgba(0,0,0,.28)}
+/* 高立燈——沙發旁，俯視是一圈燈罩的暖光 */
+.blampf{position:absolute;left:45%;bottom:4.5%;width:5%;padding-top:5%;z-index:4;pointer-events:none;border-radius:50%;
+  background:radial-gradient(circle,#f0d9a8 0 26%,#8a6f4a 46%,#3a2f22 72%);
+  box-shadow:0 0 26px rgba(240,200,120,.28)}
+/* 小圓茶几跟椅子，坐在大地墊上 */
+.btea{position:absolute;left:26%;top:56%;width:11%;padding-top:8%;height:0;z-index:4;pointer-events:none;border-radius:50%;
+  background:radial-gradient(circle at 42% 38%,#5e4b3b,#3f3226 78%);
+  box-shadow:0 5px 12px rgba(0,0,0,.45)}
+.btea::before{content:"";position:absolute;left:56%;top:22%;width:20%;padding-top:15%;border-radius:50%;
+  background:radial-gradient(circle at 40% 35%,#d8c9a8,#8a7a5c 80%);
+  box-shadow:0 1px 3px rgba(0,0,0,.5)}
+.bchair{position:absolute;left:26.5%;top:66%;width:10%;padding-top:9%;height:0;z-index:4;pointer-events:none;border-radius:32%;
+  background:radial-gradient(circle at 45% 40%,#5e4b3b,#3f3126 75%);
+  box-shadow:0 5px 11px rgba(0,0,0,.5),inset 0 0 0 3px rgba(0,0,0,.22)}
+.b-lamp{position:absolute;left:39.5%;top:40.5%;width:7%;z-index:9;padding:12px;cursor:pointer}
+.b-lamp svg{width:100%;height:auto;display:block;filter:drop-shadow(0 0 10px rgba(240,190,110,.35));transition:filter .4s,opacity .4s}
+.b-lamp.off svg{filter:none;opacity:.5}
+.b-clock{position:absolute;left:40%;top:5%;width:7%;z-index:6;pointer-events:none}
 .b-clock svg{width:100%;height:auto;display:block;filter:drop-shadow(0 3px 6px rgba(0,0,0,.5))}
-.b-rug{position:absolute;left:12%;bottom:6%;width:34%;height:8%;z-index:4;pointer-events:none;
-  border-radius:50%;background:radial-gradient(closest-side,rgba(110,80,60,.92),rgba(66,47,38,.92));
-  box-shadow:inset 0 0 12px rgba(0,0,0,.4)}
+/* 大地墊——橢圓 Earth Brown 毯，Beige Sand 滾邊配一線松綠，乖乖躺在床旁的地板上 */
+.b-rug{position:absolute;left:13%;top:54%;width:32%;height:24%;z-index:3;pointer-events:none;border-radius:50%;
+  background:radial-gradient(ellipse 42% 34% at 50% 50%,rgba(225,219,201,.14),transparent 72%),
+    repeating-linear-gradient(95deg,transparent 0 9%,rgba(225,219,201,.05) 9.5% 10.5%,transparent 11% 19%),
+    linear-gradient(180deg,#5e4b3b,#4a3b2e);
+  border:2px solid #e1dbc9;
+  box-shadow:inset 0 0 0 5px rgba(45,69,48,.75),inset 0 0 0 7px rgba(225,219,201,.65),inset 0 0 22px rgba(60,60,60,.4),0 4px 10px rgba(0,0,0,.4)}
 /* 春聯（手寫，過年模式） */
 .cpl{position:absolute;z-index:7;pointer-events:none}
 .cpl img{width:100%;height:auto;display:block;filter:brightness(.95) drop-shadow(0 3px 6px rgba(0,0,0,.5))}
@@ -1598,11 +1679,21 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
   <!-- 水窪由此生成 -->
 </div>
 
-<!-- 臥室（骨架） -->
+<!-- 臥室 v93：床可以躺，床頭燈有自己的開關 -->
 <div class="broom" id="room-bedroom" hidden>
   <div class="bwin" aria-hidden="true"><i style="left:12%"></i><i style="left:30%;animation-delay:.3s"></i><i style="left:48%;animation-delay:.6s"></i><i style="left:66%;animation-delay:.15s"></i><i style="left:84%;animation-delay:.45s"></i></div>
-  <div class="bbed" aria-hidden="true"></div>
-  <div class="b-lamp" id="bedlamp" hidden aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h12l2 9H4z" fill="#e8c070"/><rect x="11" y="12" width="2" height="6" fill="#c9a86a"/><rect x="8" y="18" width="8" height="2.6" rx="1" fill="#c9a86a"/></svg></div>
+  <div class="bwin-light" aria-hidden="true"></div>
+  <div class="bac" aria-hidden="true"></div>
+  <div class="btv" aria-hidden="true"></div>
+  <div class="bsofa" aria-hidden="true"></div>
+  <div class="blampf" aria-hidden="true"></div>
+  <div class="b-dimlayer" aria-hidden="true"></div>
+  <div class="b-lamppool" id="b-lamppool" hidden aria-hidden="true"></div>
+  <button class="bbed" id="bbed" type="button" aria-label="床——躺一下"><i class="bheadboard" aria-hidden="true"></i><i class="bmattress" aria-hidden="true"></i><i class="bpil2" aria-hidden="true"></i></button>
+  <div class="b-table" aria-hidden="true"></div>
+  <div class="btea" aria-hidden="true"></div>
+  <div class="bchair" aria-hidden="true"></div>
+  <button class="b-lamp" id="bedlamp" hidden type="button" aria-label="床頭燈，點一下開關"><svg viewBox="0 0 24 24"><path d="M6 3h12l2 9H4z" fill="#e8c070"/><rect x="11" y="12" width="2" height="6" fill="#c9a86a"/><rect x="8" y="18" width="8" height="2.6" rx="1" fill="#c9a86a"/></svg></button>
   <div class="b-clock" id="wallclock" hidden aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="#1c2436" stroke="#c9b48a" stroke-width="1.4"/><path d="M12 7.2V12l3.4 2" stroke="#e8e0d0" stroke-width="1.5" fill="none" stroke-linecap="round"/></svg></div>
   <div class="b-rug" id="brug" hidden aria-hidden="true"></div>
   <button class="lib-door bdoor" id="btn-living" aria-label="回客廳">回客廳<small>←</small></button>
@@ -2075,6 +2166,7 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
       <p><b>點當</b>：窗台上偶爾會出現淋濕的東西（雨傘、信、落葉），點一下就能當掉換雨滴。</p>
       <p><b>出去走走</b>：牆上有一扇門。不想讀了，就推門走進雨裡——外面的路上會積水窪，可以踩。陣雨來的時候是踩水時間，把整場水窪踩完有獎勵。玩夠了，點那扇亮著的門回家。街口的路牌指向河邊，那裡立著一座里民布告欄，貼著街坊的消息。</p>
       <p><b>裝飾</b>：雨滴可以在典當舖換家具——地毯、盆栽、暖爐、一座小壁爐，還有一隻貓。</p>
+      <p><b>臥室</b>：客廳右側的門通往臥室。床可以躺一下；買了床頭燈之後，點它可以只留一盞小燈。房間裡的雨聲隔著牆，會悶一點。</p>
       <p><b>季節與節日</b>：春夏秋冬輪替，窗外的東西會跟著換。節日按鈕可以掛上中秋的月亮、過年的燈籠——切到聖誕，房間裡會立起聖誕樹、桌上溫著熱紅酒，外面有雪人，聖誕老人會准時飛過夜空。</p>
       <p><b>聲音</b>：點「雨聲」打開白噪音。聖誕節期間會多一只音樂盒，寫字時還有很輕的鍵盤聲，踩水窪有「啪嚓」。</p>
       <p><b>聚會</b>：點「邀請朋友」，朋友會一個一個收傘進來，靠在一起讀書。他們讀你的書時，會在紙邊留下批注——重新打開那本書就看得見。來的時候偶爾會帶一碟點心，就放在書桌上；點一下吃掉，回一點雨滴。</p>
@@ -2173,7 +2265,8 @@ const CPL_IMG={l:"data:image/webp;base64,UklGRtYYAABXRUJQVlA4WAoAAAAQAAAATgAAKwE
 const KEY="rainypawn_v1";
 const state=Object.assign({
   drops:0, books:[], decor:[], storage:[], wordsTotal:0, room:"living", bedroomDecor:[],
-  season:"夏", friends:[], festival:"none", rainMin:0, annotations:{}, snacks:[]
+  season:"夏", friends:[], festival:"none", rainMin:0, annotations:{}, snacks:[],
+  bedLampOn:true, bedResting:false
 }, JSON.parse(localStorage.getItem(KEY)||"{}"));
 function save(){localStorage.setItem(KEY,JSON.stringify(state))}
 /* 權限欄位遷移：舊書視同「帶到客廳、允許批注」，維持原本朋友翻書留字的世界 */
@@ -2217,7 +2310,7 @@ function pumpToast(){
 }
 
 /* ================= 雨聲（Web Audio 生成） ================= */
-let actx=null,rainGain=null,playing=false;
+let actx=null,rainGain=null,playing=false,rainLP=null;
 function buildRain(){
   actx=new (window.AudioContext||window.webkitAudioContext)();
   const len=actx.sampleRate*4, buf=actx.createBuffer(1,len,actx.sampleRate);
@@ -2229,10 +2322,20 @@ function buildRain(){
   }
   const src=actx.createBufferSource();src.buffer=buf;src.loop=true;
   const lp=actx.createBiquadFilter();lp.type="lowpass";lp.frequency.value=780;
+  rainLP=lp;
   const hp=actx.createBiquadFilter();hp.type="highpass";hp.frequency.value=680;
   rainGain=actx.createGain();rainGain.gain.value=0;
   src.connect(lp);lp.connect(hp);hp.connect(rainGain);rainGain.connect(actx.destination);
   src.start();
+  muffleRain();
+}
+/* 臥室的雨隔著一堵牆，悶一點 */
+function muffleRain(){
+  if(!actx||!rainLP)return;
+  const t=actx.currentTime,f=state.room==="bedroom"?500:780;
+  rainLP.frequency.cancelScheduledValues(t);
+  rainLP.frequency.setValueAtTime(rainLP.frequency.value,t);
+  rainLP.frequency.linearRampToValueAtTime(f,t+1.2);
 }
 /* 言葉之庭式的極輕即興琴音——跟著雨聲開關 */
 const AMB_NOTES=[523.25,587.33,659.25,783.99,880.00,1046.50];
@@ -2578,22 +2681,44 @@ $("#btn-home").addEventListener("click",()=>{
   toast("回到書房，把雨關在門外。");
 });
 
-/* ---- 臥室（骨架） ---- */
+/* ---- 臥室 v93：床可以躺，床頭燈有自己的開關，雨聲進房間會變悶 ---- */
+const BED_REST_LINES=["被子蓋上來，雨聲忽然遠了。","今天撐到這裡，就已經很好了。","枕頭不問你為什麼累。"];
+const BED_UP_LINES=["起來了。被子不怪你。","再躺五分鐘的念頭，被你按掉了。","被窩先幫你暖著，回來還是熱的。"];
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+function renderBedroom(){
+  const owned=id=>state.bedroomDecor.includes(id);
+  $("#bedlamp").hidden=!owned("bedlamp");
+  $("#wallclock").hidden=!owned("wallclock");
+  $("#brug").hidden=!owned("brug");
+  const lampOn=owned("bedlamp")&&state.bedLampOn!==false;
+  $("#bedlamp").classList.toggle("off",!lampOn);
+  $("#b-lamppool").hidden=!lampOn;
+  const br=$("#room-bedroom");
+  br.classList.toggle("dim",!lampOn);
+  br.classList.toggle("resting",!!state.bedResting);
+  $("#bbed").classList.toggle("resting",!!state.bedResting);
+  $("#bbed").setAttribute("aria-label",state.bedResting?"床——起來":"床——躺一下");
+}
+$("#bbed").addEventListener("click",()=>{
+  state.bedResting=!state.bedResting;save();renderBedroom();
+  toast(state.bedResting?pick(BED_REST_LINES):pick(BED_UP_LINES),3000);
+});
+$("#bedlamp").addEventListener("click",()=>{
+  state.bedLampOn=!(state.bedLampOn!==false);save();renderBedroom();
+  toast(state.bedLampOn?"床頭燈亮了。今晚到這裡就好。":"燈滅了，雨還在窗外。",2800);
+});
 $("#btn-bedroom").addEventListener("click",()=>{
   state.room="bedroom";save();
   $("#room-bedroom").hidden=false;
+  muffleRain();
   toast("你溜回房間。客廳的雨還在下。");
 });
 $("#btn-living").addEventListener("click",()=>{
   state.room="living";save();
   $("#room-bedroom").hidden=true;
+  muffleRain();
   toast("回到客廳。");
 });
-function renderBedroom(){
-  $("#bedlamp").hidden=!state.bedroomDecor.includes("bedlamp");
-  $("#wallclock").hidden=!state.bedroomDecor.includes("wallclock");
-  $("#brug").hidden=!state.bedroomDecor.includes("brug");
-}
 renderBedroom();
 if(state.room==="bedroom")$("#room-bedroom").hidden=false;
 
@@ -2745,7 +2870,8 @@ const HINTS=[
   {key:"road",el:"#btn-road",text:"路牌指向河邊——那裡立著里民布告欄，貼著街坊的消息。"},
   {key:"home",el:"#btn-home",text:"這扇亮著的門是回家路。玩夠了，點它把雨關在門外。"},
   {key:"passage",el:"#btn-wheel",text:"書堆深處的這道光，通往夜海上的星軌檢索輪——公共的真理論辯廳。"},
-  {key:"scope",el:"#wh-telescope",text:"公共觀看的三句話，隨時可以點這裡重讀。"}
+  {key:"scope",el:"#wh-telescope",text:"公共觀看的三句話，隨時可以點這裡重讀。"},
+  {key:"bed",el:"#btn-bedroom",text:"臥室在客廳右邊——寫累了去躺一下，床頭燈可以只留一盞。"}
 ];
 /* 場景低語：第一次走進某個場景時遞一張紙條 */
 function sceneHint(key,text){
@@ -3672,9 +3798,9 @@ const GOODS=[
   {id:"key",name:"一串鑰匙",price:60,desc:"沒人記得開哪扇門。掛在門邊，等門自己想起來。"},
   {id:"phones",name:"耳機",price:90,desc:"左耳有點接觸不良。雨聲從那邊漏進來，剛剛好。"},
   {id:"stickhouse",name:"竹筷小屋",price:200,desc:"一根一根黏的。房子不大，裝得下很多年就夠了。"},
-{id:"bedlamp",room:"bed",name:"床頭燈",price:60,desc:"黃的。關了手機之後，最後陪你的是它。"},
+{id:"bedlamp",room:"bed",name:"床頭燈",price:60,desc:"黃的。關了手機之後，最後陪你的是它。點它可以開關。"},
 {id:"wallclock",room:"bed",name:"掛鐘",price:40,desc:"走得比心情慢一點。晚上看它，時間比較原諒人。"},
-{id:"brug",room:"bed",name:"窗邊小地毯",price:30,desc:"腳先落地的地方，幫它找個不冷的落腳處。"}
+{id:"brug",room:"bed",name:"大地毯",price:30,desc:"暖棕底，米色滾邊。腳先落地的地方，不冷。"}
 ];
 const TETRA_LINES=["消波塊紙鎮。壓著今天的帳，風吹不走。","從海邊退休以後，它改行壓明細。","請勿帶走——它已經習慣這裡的燈了。"];
 let tetraIdx=0;

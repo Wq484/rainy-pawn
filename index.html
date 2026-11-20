@@ -740,7 +740,7 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
 #ov-login .ltitle{font-size:19px;letter-spacing:.4em;text-indent:.4em;text-align:center;color:#f2e2b8}
 #ov-login input{background:rgba(10,14,20,.5);border:1px solid rgba(232,224,207,.16);border-radius:8px;padding:11px 13px;color:#e8e0cf;font-size:14px;outline:none;font-family:inherit}
 #ov-login input:focus{border-color:rgba(240,215,160,.45)}
-#ov-login .lgo{margin-top:4px;padding:11px;border-radius:999px;border:1px solid rgba(240,215,160,.5);background:rgba(240,215,160,.1);color:#f2e2b8;font-size:14px;letter-spacing:.3em;text-indent:.3em;cursor:pointer;font-family:inherit}
+#ov-login .lgo{margin-top:4px;padding:11px;border-radius:999px;border:1px solid rgba(240,215,160,.5);background:rgba(240,215,160,.1);color:#f2e2b8;font-size:14px;letter-spacing:.3em;text-indent:.3em;cursor:pointer;font-family:inherit} #ov-login .lstat{min-height:15px;font-size:11px;letter-spacing:.18em;text-indent:.18em;color:rgba(232,224,207,.62);text-align:center} #ov-login .lgo:disabled{opacity:.6}
 #ov-login .llinks{display:flex;justify-content:space-between;margin-top:2px}
 #ov-login .llinks span{font-size:11px;color:rgba(232,224,207,.6);cursor:pointer;letter-spacing:.08em}
 #ov-login .llinks .ltoggle{color:rgba(240,215,160,.78)}
@@ -2427,6 +2427,7 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
     <input class="luser" type="text" placeholder="電子信箱／使用者名稱" autocomplete="username">
     <input class="lpass" type="password" placeholder="密碼" autocomplete="current-password">
     <button class="lgo" type="button">登入</button>
+    <div class="lstat" aria-live="polite"></div>
     <div class="llinks"><span class="ltoggle">還沒有帳號？建立帳號</span><span class="lguest">先以訪客身分進入</span></div>
   </div>
 </div>
@@ -3598,21 +3599,32 @@ $("#btn-enter").addEventListener("click",()=>{
     closeAll(); /* empty：兩邊都還沒有雨天 */
   }
 
+  const stat=(m)=>{ const el=lv.querySelector(".lstat"); if(el) el.textContent=m; };
+  function withTimeout(pr,ms,label){
+    return Promise.race([pr, new Promise((_,rej)=>setTimeout(()=>rej(new Error(label)),ms))]);
+  }
   go.addEventListener("click",async()=>{
     const u=uIn.value.trim(), p=pIn.value;
     if(!u){ uIn.focus(); return; }
     if(!p){ pIn.focus(); return; }
-    const init=await ensureSync();
-    if(!init){ toast("雲端還在蓋，先用訪客身分逛吧"); return; }
-    go.disabled=true;
-    const mode=lv.dataset.mode;
-    const r=(mode==="建立帳號")?await RainySync.signUp(u,p):await RainySync.signIn(u,p);
-    go.disabled=false;
-    if(!r.ok){ toast(r.error.message||"登入失敗"); return; }
-    if(r.needsEmailConfirm){ toast("驗證信寄出了，收信後再回來登入"); return; }
-    curUser=r.user;
-    toast(mode==="建立帳號"?"帳號建好了，歡迎":"歡迎回來");
-    await afterLogin();
+    go.disabled=true; go.dataset.label=go.textContent; go.textContent="連線中…";
+    stat("正在叫醒雲端…");
+    try{
+      const init=await withTimeout(ensureSync(),15000,"叫醒雲端逾時（15秒沒回應）");
+      if(!init){ go.disabled=false; go.textContent=go.dataset.label; stat(""); toast("雲端還在蓋，先用訪客身分逛吧"); return; }
+      const mode=lv.dataset.mode;
+      stat(mode==="建立帳號"?"正在建立帳號…":"正在登入…");
+      const r=await withTimeout((mode==="建立帳號")?RainySync.signUp(u,p):RainySync.signIn(u,p),15000,"送出逾時（15秒沒回應）");
+      go.disabled=false; go.textContent=go.dataset.label; stat("");
+      if(!r.ok){ toast((r.error&&r.error.message)||"登入失敗"); return; }
+      if(r.needsEmailConfirm){ toast("驗證信寄出了，收信後再回來登入"); return; }
+      curUser=r.user;
+      toast(mode==="建立帳號"?"帳號建好了，歡迎":"歡迎回來");
+      await afterLogin();
+    }catch(e){
+      go.disabled=false; go.textContent=go.dataset.label; stat("");
+      toast("卡住了，把這行念給寶寶聽："+((e&&e.message)||String(e)));
+    }
   });
 
   authed.querySelector(".lsync").addEventListener("click",async()=>{

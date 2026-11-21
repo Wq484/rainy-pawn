@@ -2214,6 +2214,7 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
     </div>
     <div class="write-foot">
       <span class="wc" id="wc">0 字</span>
+      <span id="write-save-state" style="font-size:11px;color:var(--paper-dim);letter-spacing:.06em"></span>
       <button class="btn btn-ghost" data-close="ov-write">先擱著</button>
       <button class="btn btn-primary" id="btn-bind" disabled>裝訂成書</button>
     </div>
@@ -2494,13 +2495,28 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
   const SUPABASE_ANON_KEY = 'sb_publishable_OahxsEDL28f2C_IyiC1evg_3bjUZSHc';
   /* ============================== */
 
-  const LOCAL_KEY = 'rainypawn_v1';          // App 本機狀態（整包 JSON）
-  const BACKUP_KEY = 'rainypawn_v1_backup';  // 用雲端覆蓋本機前，先備份一份
+  /* ====== 本機讀寫由 App 注入（configureLocalIO）；未配置一律 fail-closed，絕不回落任何固定 key ====== */
   const TABLE = 'user_state';
   const SCHEMA_VERSION = 1;
   const MAX_BYTES = 900 * 1024;              // 單包狀態上限（約 900KB），超過先擋下
 
   let client = null;
+  // { getActiveNs(), readLocalState(ns), writeLocalState(ns,data), readLocalBackup(ns), writeLocalBackup(ns,data) }
+  let localIO = null;
+
+  function configureLocalIO(io) {
+    if (!io || typeof io.getActiveNs !== 'function'
+      || typeof io.readLocalState !== 'function' || typeof io.writeLocalState !== 'function'
+      || typeof io.readLocalBackup !== 'function' || typeof io.writeLocalBackup !== 'function') {
+      return fail('BAD_IO_CONFIG', 'configureLocalIO 需要 getActiveNs / readLocalState / writeLocalState / readLocalBackup / writeLocalBackup 五個函式。');
+    }
+    localIO = io;
+    return ok({});
+  }
+
+  function needIO() {
+    return localIO ? null : fail('LOCAL_IO_NOT_CONFIGURED', '本機讀寫尚未配置；為保護資料，同步已停止。');
+  }
 
   /* ---------- 小工具 ---------- */
   const ok = (extra) => Object.assign({ ok: true }, extra || {});
@@ -2525,19 +2541,21 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
     }
   }
 
+  // 讀本機：回傳「雲端同形」的資料（無封套、含 content），由 App 端解封套
   function readLocal() {
     try {
-      var raw = global.localStorage.getItem(LOCAL_KEY);
-      return raw ? JSON.parse(raw) : null;
+      var data = localIO.readLocalState(localIO.getActiveNs());
+      return (data && typeof data === 'object' && !Array.isArray(data)) ? data : null;
     } catch (e) {
       return null;
     }
   }
 
+  // 寫本機：App 端負責封套與 safeSetItem；失敗必須回 { ok:false }
   function writeLocal(state) {
     try {
-      global.localStorage.setItem(LOCAL_KEY, JSON.stringify(state));
-      return true;
+      var r = localIO.writeLocalState(localIO.getActiveNs(), state);
+      return !!(r && r.ok);
     } catch (e) {
       return false;
     }
@@ -2628,6 +2646,7 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
   //   'conflict'       兩邊都有且不同 → 整合方顯示選擇，再呼叫 resolveConflict('cloud'|'local')
   async function loadUserState() {
     var bad = needClient(); if (bad) return bad;
+    var noio = needIO(); if (noio) return noio;
     var user = await currentUser();
     if (!user) return fail('NOT_SIGNED_IN', '請先登入。');
 
@@ -2661,6 +2680,7 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
   // 上傳整包狀態（預設上傳本機）。只在使用者確認後呼叫。
   async function saveUserState(state) {
     var bad = needClient(); if (bad) return bad;
+    var noio = needIO(); if (noio) return noio;
     var user = await currentUser();
     if (!user) return fail('NOT_SIGNED_IN', '請先登入。');
 
@@ -2677,10 +2697,11 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
   }
 
   // 使用者在衝突畫面做出選擇後呼叫。
-  //   'cloud'：用雲端覆蓋本機（先把本機備份到 rainypawn_v1_backup）→ 整合方需重新讀取並重繪
+  //   'cloud'：用雲端覆蓋本機（先把本機寫進該 namespace 的備份 key）→ 整合方需重新讀取並重繪
   //   'local'：保留本機，上傳覆蓋雲端
   async function resolveConflict(choice) {
     var bad = needClient(); if (bad) return bad;
+    var noio = needIO(); if (noio) return noio;
     if (choice === 'local') return saveUserState(readLocal());
     if (choice !== 'cloud') return fail('BAD_CHOICE', "choice 只能是 'cloud' 或 'local'。");
 
@@ -2692,11 +2713,10 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
 
     var local = readLocal();
     if (hasData(local)) {
-      try {
-        global.localStorage.setItem(BACKUP_KEY, JSON.stringify({ savedAt: new Date().toISOString(), state: local }));
-      } catch (e) {
-        return fail('BACKUP_FAILED', '無法備份本機資料，已取消覆蓋。');
-      }
+      var bw = null;
+      try { bw = localIO.writeLocalBackup(localIO.getActiveNs(), { savedAt: new Date().toISOString(), state: local }); }
+      catch (e) { bw = null; }
+      if (!bw || !bw.ok) return fail('BACKUP_FAILED', '無法備份本機資料，已取消覆蓋。');
     }
     if (!writeLocal(res.data.state)) return fail('LOCAL_WRITE_FAILED', '無法寫入本機儲存空間。');
     return ok({ state: res.data.state });
@@ -2704,6 +2724,7 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
 
   global.RainySync = {
     init: init,
+    configureLocalIO: configureLocalIO,
     signUp: signUp,
     signIn: signIn,
     signOut: signOut,
@@ -2716,34 +2737,699 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
 
 </script>
 <script>
+/* ============================================================================
+ * rainy_store.js — 《雨天拍賣》本機儲存底座（筆記第二階段 · 第一批）
+ *
+ * 職責：
+ *   1. namespace 隔離：rainypawn_v1_guest / rainypawn_v1_user_<uid>
+ *   2. 本機封套：{ ownerId, schemaVersion, data }（上傳雲端不帶封套、維持舊形狀含 content）
+ *   3. 六態載入：missing / empty / ok 可通行；corrupt / owner_mismatch / schema_bad → saveBlocked
+ *   4. safeSetItem：唯一底層寫入（擋 blocked、配額失敗不清原資料、寫後讀回驗證）
+ *   5. notes v2：索引 key＋每書一 key（sections/blocks/position/deletedAt）＋content 鏡像
+ *   6. persistAll 交易：pending → 逐 key 寫入＋讀回 → committed；recoverPendingTx 開機最先跑
+ *   7. 舊 key 搬遷：rainypawn_v1(_backup) → guest namespace；舊 key 原樣保留為唯讀檔案
+ *
+ * 鐵律：owner 無法確認、schema 不符、載入狀態異常、寫入未過讀回——
+ *       一律停止寫入並保留原資料；不用猜測、空值或自動覆蓋讓流程繼續。
+ * ========================================================================== */
+(function (global) {
+  'use strict';
+
+  var STATE_SCHEMA = 2;       // 封套版本（1 = 舊版裸資料，無封套）
+  var NOTES_SCHEMA = 2;
+  var LEGACY_KEY = 'rainypawn_v1';
+  var LEGACY_BACKUP_KEY = 'rainypawn_v1_backup';
+  var ARCHIVE_FLAG = 'rainy_pawn_legacy_archive';
+  var QUOTA_BUDGET = 4.5 * 1024 * 1024; // 搬遷估算用上限；實際配額以瀏覽器為準
+
+  var currentNs = 'guest';
+  var blockedNs = {};   // namespace → 阻擋原因（corrupt / owner_mismatch / schema_bad）
+  var nsLock = false;   // 登入切換的短暫過渡：暫停 save，避免把舊畫面的資料寫進新 namespace
+
+  /* ---------- 底層原始讀寫（全檔唯一直接碰 localStorage 寫入的地方） ---------- */
+  function rawGet(key) {
+    try { return global.localStorage.getItem(key); } catch (e) { return null; }
+  }
+  function rawSet(key, value) {
+    global.localStorage.setItem(key, value); // 可能丟 QuotaExceededError，由 safeSetItem 捕捉
+  }
+  function rawRemove(key) {
+    try { global.localStorage.removeItem(key); } catch (e) {}
+  }
+
+  /* ---------- key 命名 ---------- */
+  function stateKeyFor(ns) { return ns === 'guest' ? 'rainypawn_v1_guest' : 'rainypawn_v1_' + ns; }
+  function backupKeyFor(ns) { return stateKeyFor(ns) + '_backup'; }
+  function notesIndexKey(ns) { return 'rainy_pawn_notes_v2_' + ns; }
+  function notesBookKey(ns, bookId) { return 'rainy_pawn_notes_v2_' + ns + '_book_' + bookId; }
+  function notesTxKey(ns) { return 'rainy_pawn_notes_v2_' + ns + '_tx'; }
+  function mergeDoneKey(uid) { return 'rainy_pawn_migr_' + uid + '_done'; }
+  function ownerOfNs(ns) { return ns === 'guest' ? 'guest' : String(ns).replace(/^user_/, ''); }
+  // 注意：Supabase uid 為 UUID（只含 hex 與連字號，無底線），key 解析依賴這個前提
+  function nsOfStateKey(key) {
+    if (key === 'rainypawn_v1_guest' || key === 'rainypawn_v1_guest_backup') return 'guest';
+    if (key.indexOf('rainypawn_v1_user_') !== 0) return null;
+    var m = /^([0-9a-f-]+?)(_backup)?$/i.exec(key.slice('rainypawn_v1_user_'.length));
+    return m ? 'user_' + m[1] : null;
+  }
+  function nsOfNotesKey(key) {
+    if (key.indexOf('rainy_pawn_notes_v2_') !== 0) return null;
+    var rest = key.slice('rainy_pawn_notes_v2_'.length);
+    if (rest === 'guest' || rest === 'guest_tx' || rest.indexOf('guest_book_') === 0) return 'guest';
+    var m = /^user_([0-9a-f-]+?)(?:_book_.+)?(?:_tx)?$/i.exec(rest);
+    return m ? 'user_' + m[1] : null;
+  }
+
+  /* ---------- 釘住的錯誤橫幅（toast 會閃逝，資料錯誤不行） ----------
+   * opts.unlockNs：附上「我已匯出，解除鎖定」按鈕——清掉該 ns 的 pending tx 與阻擋狀態。
+   * 只在「匯出按鈕同場」時提供，強迫使用者先拿原始資料再解鎖。 */
+  function showDataError(msg, opts) {
+    opts = opts || {};
+    if (!global.document || !global.document.body) return;
+    var bar = global.document.getElementById('rp-data-error');
+    if (!bar) {
+      bar = global.document.createElement('div');
+      bar.id = 'rp-data-error';
+      bar.setAttribute('role', 'alert');
+      bar.style.cssText = 'position:fixed;left:12px;right:12px;top:12px;z-index:99999;'
+        + 'background:#3a1f1f;color:#f3d9c8;border:1px solid #a83a32;border-radius:10px;'
+        + 'padding:10px 14px;font-size:13px;line-height:1.7;box-shadow:0 6px 24px rgba(0,0,0,.45)';
+      global.document.body.appendChild(bar);
+    }
+    /* 阻擋期間的後續寫入通知（autosave、persistAll 的 save_blocked 提示）只換訊息、
+     * 不得洗掉「解除鎖定」逃生鈕——曾提供過 unlockNs 就保留同一顆鈕到使用者處理完 */
+    var keepUnlock = bar.dataset.unlockNs || null;
+    if (opts.unlockNs) { keepUnlock = opts.unlockNs; bar.dataset.unlockNs = opts.unlockNs; }
+    bar.innerHTML = '';
+    var span = global.document.createElement('span');
+    span.textContent = msg;
+    bar.appendChild(span);
+    var btnCss = 'margin-left:10px;background:none;border:1px solid #a83a32;color:#f3d9c8;'
+      + 'border-radius:6px;padding:2px 10px;cursor:pointer;font-size:12px';
+    var btn = global.document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = '匯出目前原始資料';
+    btn.style.cssText = btnCss;
+    btn.addEventListener('click', function () { exportAllLocalData(); });
+    bar.appendChild(btn);
+    if (keepUnlock) {
+      var un = global.document.createElement('button');
+      un.type = 'button';
+      un.textContent = '我已匯出，解除鎖定';
+      un.style.cssText = btnCss;
+      un.addEventListener('click', function () {
+        rawRemove(notesTxKey(keepUnlock));
+        delete blockedNs[keepUnlock];
+        delete bar.dataset.unlockNs;
+        bar.hidden = true;
+      });
+      bar.appendChild(un);
+    }
+    bar.hidden = false;
+  }
+  /* ---------- 身分切換提示條：nsLock 期間的寫入會被丟棄，必須讓使用者看見 ---------- */
+  function showNsTransition() {
+    if (!global.document || !global.document.body) return;
+    var bar = global.document.getElementById('rp-ns-transition');
+    if (!bar) {
+      bar = global.document.createElement('div');
+      bar.id = 'rp-ns-transition';
+      bar.style.cssText = 'position:fixed;left:12px;right:12px;top:64px;z-index:99998;'
+        + 'background:#22303f;color:#cfe0f0;border:1px solid #4a6a8a;border-radius:10px;'
+        + 'padding:8px 14px;font-size:12px;line-height:1.6;box-shadow:0 6px 24px rgba(0,0,0,.45)';
+      global.document.body.appendChild(bar);
+    }
+    bar.textContent = '正在切換帳號…這幾秒內的變更不會被保存';
+    bar.hidden = false;
+  }
+  function hideNsTransition() {
+    if (!global.document) return;
+    var bar = global.document.getElementById('rp-ns-transition');
+    if (bar) bar.hidden = true;
+  }
+
+  function exportAllLocalData() {
+    var dump = {};
+    try {
+      for (var i = 0; i < global.localStorage.length; i++) {
+        var k = global.localStorage.key(i);
+        if (/^rainy/i.test(k)) dump[k] = rawGet(k);
+      }
+    } catch (e) {}
+    var blob = new Blob([JSON.stringify({ exportedAt: new Date().toISOString(), keys: dump }, null, 2)],
+      { type: 'application/json' });
+    var a = global.document.createElement('a');
+    var d = new Date(), pad = function (n) { return String(n).padStart(2, '0'); };
+    a.href = URL.createObjectURL(blob);
+    a.download = 'rainy_pawn_local_dump_' + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate())
+      + '_' + pad(d.getHours()) + pad(d.getMinutes()) + '.json';
+    global.document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+  }
+
+  /* ---------- safeSetItem：唯一底層寫入 ---------- */
+  function isQuotaErr(e) {
+    return e && (e.name === 'QuotaExceededError' || e.code === 22 || e.code === 1014);
+  }
+  // ctx: { ns, allowCross, scope:'device', context }
+  function safeSetItem(key, value, ctx) {
+    ctx = ctx || {};
+    var k = String(key);
+    var kns = (ctx.scope === 'device') ? null : (nsOfStateKey(k) || nsOfNotesKey(k));
+    if (ctx.scope !== 'device' && !kns) {
+      showDataError('儲存失敗：無法辨識的資料 key，已停止寫入。');
+      return { ok: false, error: 'unknown_key' };
+    }
+    if (kns) {
+      if (blockedNs[kns]) {
+        showDataError('資料讀取失敗，原資料未被覆蓋。（已停止對該帳號資料的寫入）');
+        return { ok: false, error: 'save_blocked' };
+      }
+      var declared = ctx.ns || currentNs;
+      if (kns !== declared || (!ctx.allowCross && kns !== currentNs)) {
+        showDataError('儲存目標與目前身分不符，已停止寫入。');
+        return { ok: false, error: 'ns_mismatch' };
+      }
+    }
+    var str = (typeof value === 'string') ? value : JSON.stringify(value);
+    try {
+      rawSet(k, str);
+    } catch (e) {
+      if (isQuotaErr(e)) {
+        showDataError('儲存失敗：本機空間不足。原資料沒有被更動；建議先匯出備份。');
+        return { ok: false, error: 'quota' };
+      }
+      showDataError('儲存失敗：' + (e && e.message ? e.message : String(e)));
+      return { ok: false, error: 'io' };
+    }
+    if (rawGet(k) !== str) { // 寫後讀回驗證
+      showDataError('儲存後驗證失敗，資料可能未正確寫入。');
+      return { ok: false, error: 'verify' };
+    }
+    return { ok: true };
+  }
+
+  /* ---------- 六態載入 ---------- */
+  function blockNs(ns, status, msg, opts) {
+    blockedNs[ns] = status;
+    showDataError(msg, opts);
+    return { status: status, ns: ns, data: null };
+  }
+  function loadNamespaced(ns) {
+    var raw = rawGet(stateKeyFor(ns));
+    if (raw === null) return { status: 'missing', ns: ns, data: null };
+    var env;
+    try { env = JSON.parse(raw); } catch (e) {
+      return blockNs(ns, 'corrupt', '資料讀取失敗，原資料未被覆蓋。');
+    }
+    if (!env || typeof env !== 'object' || Array.isArray(env)) {
+      return blockNs(ns, 'corrupt', '資料讀取失敗，原資料未被覆蓋。');
+    }
+    if (env.schemaVersion !== STATE_SCHEMA) {
+      return blockNs(ns, 'schema_bad', '資料版本不相容，原資料未被覆蓋。');
+    }
+    if (env.ownerId !== ownerOfNs(ns)) {
+      return blockNs(ns, 'owner_mismatch', '這份資料屬於另一個帳號；為保護它，已停止寫入。');
+    }
+    var data = env.data;
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      return blockNs(ns, 'corrupt', '資料讀取失敗，原資料未被覆蓋。');
+    }
+    if (Object.keys(data).length === 0) return { status: 'empty', ns: ns, data: {} };
+    return { status: 'ok', ns: ns, data: data };
+  }
+
+  function saveStateTo(ns, stateData) {
+    if (blockedNs[ns]) {
+      showDataError('資料讀取失敗，原資料未被覆蓋。');
+      return { ok: false, error: 'save_blocked' };
+    }
+    var env = { ownerId: ownerOfNs(ns), schemaVersion: STATE_SCHEMA, data: stateData };
+    return safeSetItem(stateKeyFor(ns), JSON.stringify(env), { ns: ns, allowCross: true, context: 'state' });
+  }
+  function saveState(stateData) {
+    if (nsLock) return { ok: false, error: 'ns_transition' }; // 切換過渡期不寫，避免跨 namespace 污染
+    return saveStateTo(currentNs, stateData);
+  }
+  function writeBackup(ns, data) {
+    return safeSetItem(backupKeyFor(ns), JSON.stringify(data), { ns: ns, allowCross: true, context: 'backup' });
+  }
+  function readBackup(ns) {
+    var raw = rawGet(backupKeyFor(ns));
+    if (raw === null) return null;
+    try { return JSON.parse(raw); } catch (e) { return null; }
+  }
+
+  /* ---------- notes v2：索引 / 書文件 / content 鏡像 ---------- */
+  function emptyNotesIndex(ns) {
+    return { ownerId: ownerOfNs(ns), notesSchema: NOTES_SCHEMA, bookIndex: {}, inbox: [], drafts: {}, syncStatus: 'local_only', lastSavedAt: null };
+  }
+  function loadNotesIndex(ns) {
+    var raw = rawGet(notesIndexKey(ns));
+    if (raw === null) return { status: 'missing', index: emptyNotesIndex(ns) };
+    var idx;
+    try { idx = JSON.parse(raw); } catch (e) {
+      blockNs(ns, 'corrupt', '筆記索引讀取失敗，原資料未被覆蓋。');
+      return { status: 'blocked', index: null };
+    }
+    if (!idx || typeof idx !== 'object' || idx.ownerId !== ownerOfNs(ns) || idx.notesSchema !== NOTES_SCHEMA
+      || !idx.bookIndex || typeof idx.bookIndex !== 'object'
+      || !Array.isArray(idx.inbox) || !idx.drafts || typeof idx.drafts !== 'object') {
+      blockNs(ns, 'corrupt', '筆記索引讀取失敗，原資料未被覆蓋。');
+      return { status: 'blocked', index: null };
+    }
+    return { status: 'ok', index: idx };
+  }
+  function loadNotesBook(ns, bookId) {
+    var raw = rawGet(notesBookKey(ns, bookId));
+    if (raw === null) return { status: 'missing', doc: null };
+    var doc;
+    try { doc = JSON.parse(raw); } catch (e) {
+      blockNs(ns, 'corrupt', '筆記文件讀取失敗，原資料未被覆蓋。');
+      return { status: 'blocked', doc: null };
+    }
+    if (!doc || typeof doc !== 'object' || doc.ownerId !== ownerOfNs(ns)
+      || doc.bookId !== bookId || !Array.isArray(doc.sections)) {
+      blockNs(ns, 'corrupt', '筆記文件讀取失敗，原資料未被覆蓋。');
+      return { status: 'blocked', doc: null };
+    }
+    return { status: 'ok', doc: doc };
+  }
+  // content 鏡像：每次寫入都從 blocks 反向重組（第一批：單 section 單 block，與原文逐字相同）
+  function contentFromBlocks(doc) {
+    var texts = [];
+    (doc.sections || []).filter(function (s) { return !s.deletedAt; })
+      .sort(function (a, b) { return a.position - b.position; })
+      .forEach(function (s) {
+        (s.blocks || []).filter(function (b) { return !b.deletedAt; })
+          .sort(function (a, b) { return a.position - b.position; })
+          .forEach(function (b) { if (b.type === 'text') texts.push(String(b.text == null ? '' : b.text)); });
+      });
+    return texts.join('\n\n');
+  }
+  function makeBookDocFromContent(ns, book, existing) {
+    var now = Date.now();
+    var oldSec = existing && Array.isArray(existing.sections) && existing.sections[0] && !existing.sections[0].deletedAt
+      ? existing.sections[0] : null;
+    var oldBlk = oldSec && Array.isArray(oldSec.blocks) && oldSec.blocks[0] && !oldSec.blocks[0].deletedAt
+      ? oldSec.blocks[0] : null;
+    var blk = {
+      id: oldBlk ? oldBlk.id : 'blk_' + now.toString(36) + '_' + Math.floor(Math.random() * 1e6).toString(36),
+      type: 'text',
+      text: String(book.content == null ? '' : book.content),
+      source: 'bind',
+      isPublic: book.visibility === 'public' && !book.withdrawn,
+      position: 0,
+      createdAt: oldBlk ? oldBlk.createdAt : now,
+      updatedAt: now
+    };
+    var sec = {
+      id: oldSec ? oldSec.id : 'sec_' + now.toString(36) + '_' + Math.floor(Math.random() * 1e4).toString(36),
+      bookId: book.id,
+      title: '正文',
+      blocks: [blk],
+      position: 0,
+      createdAt: oldSec ? oldSec.createdAt : now,
+      updatedAt: now,
+      deletedAt: null
+    };
+    return {
+      ownerId: ownerOfNs(ns),
+      bookId: book.id,
+      sections: [sec],
+      updatedAt: now,
+      deletedAt: book.deletedAt || null
+    };
+  }
+
+  /* ---------- persistAll 交易 ---------- */
+  function hashStr(s) { // FNV-1a 32bit（讀回比對用，非加密）
+    var h = 0x811c9dc5;
+    for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = (h * 0x01000193) >>> 0; }
+    return ('0000000' + h.toString(16)).slice(-8);
+  }
+  function txSnapshot(ns, bookIds) {
+    var parts = [];
+    bookIds.forEach(function (id) { parts.push(rawGet(notesBookKey(ns, id)) || ''); });
+    parts.push(rawGet(notesIndexKey(ns)) || '');
+    return parts.join('');
+  }
+  // payload: { bookDocs: [...], index: {...} }。pending 只鎖同 namespace，不擋其他 namespace。
+  function persistAll(ns, payload) {
+    if (blockedNs[ns]) {
+      showDataError('資料讀取失敗，原資料未被覆蓋。');
+      return { ok: false, error: 'save_blocked' };
+    }
+    var bookDocs = payload.bookDocs || [];
+    var index = payload.index;
+    var bookIds = bookDocs.map(function (d) { return d.bookId; });
+    var beforeHash = hashStr(txSnapshot(ns, bookIds));
+    /* 先蓋 lastSavedAt 再算 afterHash——順序反了雜湊永遠對不上，恢復時會把正常資料誤鎖 */
+    if (index) index.lastSavedAt = new Date().toISOString();
+    var afterStr = bookDocs.map(function (d) { return JSON.stringify(d); }).join('')
+      + (index ? JSON.stringify(index) : '');
+    var tx = {
+      state: 'pending', ns: ns, ownerId: ownerOfNs(ns), bookIds: bookIds,
+      startedAt: new Date().toISOString(), beforeHash: beforeHash, afterHash: hashStr(afterStr)
+    };
+    var r = safeSetItem(notesTxKey(ns), JSON.stringify(tx), { ns: ns, allowCross: true, context: 'tx_pending' });
+    if (!r.ok) return { ok: false, error: 'tx_write_failed' };
+    for (var i = 0; i < bookDocs.length; i++) {
+      r = safeSetItem(notesBookKey(ns, bookDocs[i].bookId), JSON.stringify(bookDocs[i]),
+        { ns: ns, allowCross: true, context: 'notes_book' });
+      if (!r.ok) return { ok: false, error: 'book_write_failed' }; // tx 停留 pending，交由 recoverPendingTx 判定
+    }
+    if (index) {
+      r = safeSetItem(notesIndexKey(ns), JSON.stringify(index), { ns: ns, allowCross: true, context: 'notes_index' });
+      if (!r.ok) return { ok: false, error: 'index_write_failed' };
+    }
+    tx.state = 'committed';
+    r = safeSetItem(notesTxKey(ns), JSON.stringify(tx), { ns: ns, allowCross: true, context: 'tx_commit' });
+    if (!r.ok) return { ok: false, error: 'tx_commit_failed' };
+    return { ok: true };
+  }
+  /* 部分寫入的逐 key 驗證：存在的書文件／索引必須格式與 owner 都對；缺 key 容忍（留待從 content 重建） */
+  function validateTxKeys(ns, bookIds) {
+    for (var i = 0; i < bookIds.length; i++) {
+      var raw = rawGet(notesBookKey(ns, bookIds[i]));
+      if (raw === null) continue;
+      var d;
+      try { d = JSON.parse(raw); } catch (e) { return false; }
+      if (!d || typeof d !== 'object' || d.ownerId !== ownerOfNs(ns)
+        || d.bookId !== bookIds[i] || !Array.isArray(d.sections)) return false;
+    }
+    var iraw = rawGet(notesIndexKey(ns));
+    if (iraw !== null) {
+      var ix;
+      try { ix = JSON.parse(iraw); } catch (e) { return false; }
+      if (!ix || typeof ix !== 'object' || ix.ownerId !== ownerOfNs(ns) || ix.notesSchema !== NOTES_SCHEMA) return false;
+    }
+    return true;
+  }
+  // 開機最先跑：pending 交易三態——全寫完（＝afterHash）補 committed；
+  // 根本沒寫（＝beforeHash）丟棄這筆 pending 放行；部分寫入逐 key 驗證，全合法才放行，
+  // 否則鎖住並提供「匯出後解鎖」出口。不硬救、不亂清。
+  function recoverPendingTx(ns) {
+    var raw = rawGet(notesTxKey(ns));
+    if (raw === null) return { status: 'none' };
+    var tx;
+    try { tx = JSON.parse(raw); } catch (e) {
+      return blockNs(ns, 'corrupt', '發現一筆無法辨識的未完成寫入；為保護資料，已停止寫入。');
+    }
+    if (!tx || tx.state !== 'pending') return { status: 'clean' };
+    if (tx.ns !== ns || tx.ownerId !== ownerOfNs(ns) || !Array.isArray(tx.bookIds)) {
+      return blockNs(ns, 'corrupt', '發現一筆身分不符的未完成寫入；為保護資料，已停止寫入。');
+    }
+    var cross = tx.bookIds.some(function (id) { return nsOfNotesKey(notesBookKey(ns, id)) !== ns; });
+    if (cross) {
+      return blockNs(ns, 'corrupt', '發現一筆跨越帳號的未完成寫入；為保護資料，已停止寫入。');
+    }
+    var snapHash = hashStr(txSnapshot(ns, tx.bookIds));
+    if (snapHash === tx.afterHash) {
+      if (blockedNs[ns]) return { status: 'blocked' };
+      tx.state = 'committed';
+      var r = safeSetItem(notesTxKey(ns), JSON.stringify(tx), { ns: ns, allowCross: true, context: 'tx_recover' });
+      if (!r.ok) return { status: 'blocked' };
+      return { status: 'recovered' };
+    }
+    if (snapHash === tx.beforeHash) {
+      rawRemove(notesTxKey(ns)); // 一個字都沒落地：這筆 pending 作廢，不鎖
+      return { status: 'rolled_back' };
+    }
+    if (validateTxKeys(ns, tx.bookIds)) {
+      rawRemove(notesTxKey(ns)); // 部分寫入但每個 key 自成合法狀態：放行，缺的文件由 content 重建
+      return { status: 'recovered_partial' };
+    }
+    return blockNs(ns, 'corrupt',
+      '上次寫入未完成，且部分資料無法驗證；已停止寫入。請先「匯出目前原始資料」，確認檔案收好後再按「解除鎖定」。',
+      { unlockNs: ns });
+  }
+
+  /* ---------- 舊 key 搬遷：無封套的 rainypawn_v1(_backup) → guest namespace ----------
+   * 規則：不猜主人、一律只進 guest；舊 key 原樣保留為唯讀檔案，
+   *       「已搬遷」標記寫在獨立 flag key（rainy_pawn_legacy_archive），不動舊 key 本身。 */
+  function migrateLegacyKeys() {
+    if (rawGet(ARCHIVE_FLAG) !== null) return { status: 'already' };
+    var legacy = rawGet(LEGACY_KEY);
+    var legacyBak = rawGet(LEGACY_BACKUP_KEY);
+    var moved = { main: false, backup: false };
+    if (legacy !== null && rawGet(stateKeyFor('guest')) === null) {
+      var data = null;
+      try { data = JSON.parse(legacy); } catch (e) { data = null; }
+      if (!data || typeof data !== 'object' || Array.isArray(data)) {
+        // 舊主檔已壞：照樣封存標記，但 guest namespace 保持 missing，不寫入壞資料
+        showDataError('舊資料讀取失敗；原始檔案已保留，未做任何覆蓋。');
+      } else {
+        var incoming = JSON.stringify(legacy).length + (legacyBak ? legacyBak.length : 0);
+        var existing = 0;
+        try {
+          for (var i = 0; i < global.localStorage.length; i++) {
+            var v = rawGet(global.localStorage.key(i));
+            if (v) existing += v.length;
+          }
+        } catch (e) {}
+        if (existing + incoming > QUOTA_BUDGET) {
+          /* 鎖 guest：不鎖的話 App 會開出空訪客，使用者一寫就建立新檔，舊資料變孤兒。
+           * 不寫搬遷標記，釋放空間後重新整理會再試一次；匯出按鈕會一起匯出舊 key。 */
+          blockNs('guest', 'quota',
+            '儲存空間不足，舊資料搬遷已中止；為保護舊資料，已停止訪客身分的寫入。請先匯出原始資料，釋放空間後重新整理會再試一次。');
+          return { status: 'blocked', error: 'quota' };
+        }
+        var env = { ownerId: 'guest', schemaVersion: STATE_SCHEMA, data: data };
+        var r = safeSetItem(stateKeyFor('guest'), JSON.stringify(env), { ns: 'guest', context: 'migrate' });
+        if (!r.ok) {
+          blockNs('guest', 'io',
+            '舊資料搬遷寫入失敗；為保護舊資料，已停止訪客身分的寫入。請先匯出原始資料，重新整理會再試一次。');
+          return { status: 'blocked', error: 'io' };
+        }
+        moved.main = true;
+      }
+    }
+    if (legacyBak !== null && rawGet(backupKeyFor('guest')) === null) {
+      var rb = safeSetItem(backupKeyFor('guest'), legacyBak, { ns: 'guest', context: 'migrate_backup' });
+      if (rb.ok) moved.backup = true;
+      else {
+        blockNs('guest', 'io',
+          '舊備份搬遷寫入失敗；為保護舊資料，已停止訪客身分的寫入。請先匯出原始資料，重新整理會再試一次。');
+        return { status: 'blocked', error: 'io' };
+      }
+    }
+    var flag = { archivedAt: new Date().toISOString(), moved: moved, legacyKeysKeptReadonly: [LEGACY_KEY, LEGACY_BACKUP_KEY] };
+    safeSetItem(ARCHIVE_FLAG, JSON.stringify(flag), { scope: 'device', context: 'archive_flag' });
+    return { status: 'done', moved: moved };
+  }
+
+  /* ---------- 草稿 saver：timer 綁建立時的 namespace；切 ns 後舊 timer 作廢 ---------- */
+  function makeDraftSaver(ns, onSave) {
+    var timer = null, lastAt = 0, pending = null;
+    function fire() {
+      timer = null;
+      if (blockedNs[ns]) return;
+      if (!pending) return;
+      var p = pending; pending = null;
+      lastAt = Date.now();
+      onSave(ns, p);
+    }
+    function schedule(draft) {
+      pending = draft;
+      var elapsed = Date.now() - lastAt;
+      var wait = elapsed >= 2500 ? 0 : Math.min(500, 2500 - elapsed);
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(fire, wait);
+    }
+    function flush() { if (timer) { clearTimeout(timer); timer = null; } if (pending) { var p = pending; pending = null; onSave(ns, p); } }
+    function cancel() { if (timer) { clearTimeout(timer); timer = null; } pending = null; }
+    return { schedule: schedule, flush: flush, cancel: cancel, ns: ns };
+  }
+
+  /* ---------- guest → user 複製（必須使用者明確確認才呼叫；guest 原檔不動） ---------- */
+  function mergeGuestIntoUser(uid, guestState, userState) {
+    var ns = 'user_' + uid;
+    var guestBooks = Array.isArray(guestState.books) ? guestState.books : [];
+    var userBooks = Array.isArray(userState.books) ? userState.books : [];
+    var byId = {};
+    userBooks.forEach(function (b) { if (b && b.id) byId[b.id] = b; });
+    var added = 0, skipped = 0, forked = 0;
+    guestBooks.forEach(function (gb) {
+      if (!gb || !gb.id) return;
+      var ub = byId[gb.id];
+      if (!ub) { userBooks.push(gb); added++; return; }
+      var gStable = JSON.stringify({ t: gb.title, c: gb.content });
+      var uStable = JSON.stringify({ t: ub.title, c: ub.content });
+      if (gStable === uStable) { skipped++; return; }
+      var fork = JSON.parse(JSON.stringify(gb));
+      fork.id = 'gb_' + Date.now().toString(36) + '_' + Math.floor(Math.random() * 1e6).toString(36);
+      fork.title = String(gb.title || '無題') + '（訪客版本）';
+      userBooks.push(fork); forked++;
+    });
+    var merged;
+    if (Object.keys(userState).length === 0) {
+      merged = JSON.parse(JSON.stringify(guestState)); // user namespace 為空：整包採用 guest
+    } else {
+      merged = userState;
+      merged.books = userBooks;
+    }
+    var wr = saveStateTo(ns, merged);
+    if (!wr.ok) return { ok: false, error: 'state_write_failed' };
+    // notes 文件複製（ownerId 改掛 uid；guest 原檔不動）
+    var gi = loadNotesIndex('guest');
+    var bookDocs = [];
+    guestBooks.forEach(function (gb) {
+      if (!gb || !gb.id) return;
+      var gr = loadNotesBook('guest', gb.id);
+      if (gr.status === 'ok' && gr.doc) {
+        var doc = JSON.parse(JSON.stringify(gr.doc));
+        doc.ownerId = uid;
+        bookDocs.push(doc);
+      }
+    });
+    var idx = (gi.status === 'ok') ? JSON.parse(JSON.stringify(gi.index)) : emptyNotesIndex(ns);
+    idx.ownerId = uid;
+    idx.inbox = [];
+    idx.drafts = {};
+    if (bookDocs.length || gi.status === 'ok') {
+      var pr = persistAll(ns, { bookDocs: bookDocs, index: idx });
+      if (!pr.ok) return { ok: false, error: 'notes_copy_failed' };
+    }
+    safeSetItem(mergeDoneKey(uid), JSON.stringify({ doneAt: new Date().toISOString(), added: added, skipped: skipped, forked: forked }),
+      { scope: 'device', context: 'merge_done' });
+    return { ok: true, added: added, skipped: skipped, forked: forked };
+  }
+  function isMergeDone(uid) { return rawGet(mergeDoneKey(uid)) !== null; }
+
+  /* ---------- namespace 控制（App 登入/登出時呼叫） ---------- */
+  function getNs() { return currentNs; }
+  function setNs(ns) { currentNs = (ns === 'guest') ? 'guest' : String(ns); return currentNs; }
+  function lockNs() { nsLock = true; showNsTransition(); }
+  function unlockNs() { nsLock = false; hideNsTransition(); }
+  function isNsBlocked(ns) { return !!blockedNs[ns]; }
+  function blockedReason(ns) { return blockedNs[ns] || null; }
+
+  /* ---------- 書 → notes 寫穿（第一批：content 為源，寫入時反向生成鏡像） ---------- */
+  // 回傳 { ok, content }；失敗時 state 端不應繼續假裝寫成
+  function syncBookNotes(ns, book) {
+    if (blockedNs[ns]) return { ok: false, error: 'save_blocked' };
+    var ir = loadNotesIndex(ns);
+    if (ir.status === 'blocked') return { ok: false, error: 'index_blocked' };
+    var existing = loadNotesBook(ns, book.id);
+    if (existing.status === 'blocked') return { ok: false, error: 'book_blocked' };
+    var doc = makeBookDocFromContent(ns, book, existing.doc);
+    var mirror = contentFromBlocks(doc);
+    var idx = ir.index;
+    idx.bookIndex[book.id] = { bookId: book.id, updatedAt: doc.updatedAt, deletedAt: doc.deletedAt || null };
+    var pr = persistAll(ns, { bookDocs: [doc], index: idx });
+    if (!pr.ok) return { ok: false, error: pr.error };
+    return { ok: true, content: mirror };
+  }
+  function markBookDeleted(ns, bookId, deletedAt) {
+    var br = loadNotesBook(ns, bookId);
+    if (br.status === 'missing') return { ok: true, missing: true };
+    if (br.status !== 'ok') return { ok: false, error: 'book_blocked' };
+    var doc = br.doc;
+    doc.deletedAt = deletedAt;
+    (doc.sections || []).forEach(function (s) { s.deletedAt = s.deletedAt || deletedAt; });
+    var ir = loadNotesIndex(ns);
+    if (ir.status !== 'ok') return { ok: false, error: 'index_blocked' };
+    if (ir.index.bookIndex[bookId]) ir.index.bookIndex[bookId].deletedAt = deletedAt;
+    var pr = persistAll(ns, { bookDocs: [doc], index: ir.index });
+    return pr.ok ? { ok: true } : { ok: false, error: pr.error };
+  }
+  function readBookContentFromNotes(ns, bookId) {
+    var br = loadNotesBook(ns, bookId);
+    if (br.status !== 'ok') return null;
+    return contentFromBlocks(br.doc);
+  }
+
+  /* ---------- 草稿（寫進 notes 索引的 drafts 欄位；等 notes＋metadata 都寫成才清） ----------
+   * missing 視同空索引（跟 syncBookNotes 同規格）——全新裝置第一篇草稿也存得住，
+   * 不然登入切換清編輯器時，從未裝訂過的文字會直接蒸發。 */
+  function saveDraft(ns, draft) {
+    var ir = loadNotesIndex(ns);
+    if (ir.status === 'blocked') return { ok: false, error: 'index_blocked' };
+    ir.index.drafts[draft.key] = { title: draft.title, content: draft.content, updatedAt: Date.now() };
+    var pr = persistAll(ns, { bookDocs: [], index: ir.index });
+    return pr.ok ? { ok: true } : { ok: false, error: pr.error };
+  }
+  function clearDraft(ns, key) {
+    var ir = loadNotesIndex(ns);
+    if (ir.status === 'blocked') return { ok: false, error: 'index_blocked' };
+    if (!ir.index.drafts[key]) return { ok: true, empty: true };
+    delete ir.index.drafts[key];
+    var pr = persistAll(ns, { bookDocs: [], index: ir.index });
+    return pr.ok ? { ok: true } : { ok: false, error: pr.error };
+  }
+  function loadDraft(ns, key) {
+    var ir = loadNotesIndex(ns);
+    if (ir.status !== 'ok') return null;
+    return ir.index.drafts[key] || null;
+  }
+
+  global.RainyStore = {
+    // key 命名
+    stateKeyFor: stateKeyFor, backupKeyFor: backupKeyFor,
+    notesIndexKey: notesIndexKey, notesBookKey: notesBookKey, notesTxKey: notesTxKey,
+    ownerOfNs: ownerOfNs, nsOfStateKey: nsOfStateKey, nsOfNotesKey: nsOfNotesKey,
+    // 底層（唯一直寫點）
+    safeSetItem: safeSetItem, rawGet: rawGet, rawRemove: rawRemove,
+    // 錯誤 UI / 救援
+    showDataError: showDataError, exportAllLocalData: exportAllLocalData,
+    // 六態載入 / 寫入
+    loadNamespaced: loadNamespaced, saveState: saveState, saveStateTo: saveStateTo,
+    readBackup: readBackup, writeBackup: writeBackup,
+    // namespace 控制
+    getNs: getNs, setNs: setNs, lockNs: lockNs, unlockNs: unlockNs,
+    isNsBlocked: isNsBlocked, blockedReason: blockedReason,
+    // 搬遷 / 合併
+    migrateLegacyKeys: migrateLegacyKeys, mergeGuestIntoUser: mergeGuestIntoUser, isMergeDone: isMergeDone,
+    // notes v2
+    loadNotesIndex: loadNotesIndex, loadNotesBook: loadNotesBook,
+    contentFromBlocks: contentFromBlocks, persistAll: persistAll, recoverPendingTx: recoverPendingTx,
+    syncBookNotes: syncBookNotes, markBookDeleted: markBookDeleted, readBookContentFromNotes: readBookContentFromNotes,
+    // 草稿
+    makeDraftSaver: makeDraftSaver, saveDraft: saveDraft, clearDraft: clearDraft, loadDraft: loadDraft,
+    // 常數
+    STATE_SCHEMA: STATE_SCHEMA, NOTES_SCHEMA: NOTES_SCHEMA,
+    LEGACY_KEY: LEGACY_KEY, LEGACY_BACKUP_KEY: LEGACY_BACKUP_KEY, ARCHIVE_FLAG: ARCHIVE_FLAG
+  };
+})(window);
+
+</script>
+<script>
 "use strict";
 /* ================= 狀態 ================= */
 const CPL_IMG={l:"data:image/webp;base64,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",r:"data:image/webp;base64,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",t:"data:image/webp;base64,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"};
-const KEY="rainypawn_v1";
-const state=Object.assign({
+/* ===== 開機前導（同步段）：交易回復 → 舊 key 搬遷 → 六態載入 guest =====
+   登入後的 namespace 切換在登入面板模組（auth IIFE）處理。 */
+RainyStore.recoverPendingTx("guest");
+RainyStore.migrateLegacyKeys();
+const __bootLoad=RainyStore.loadNamespaced("guest");
+const STATE_DEFAULTS={
   drops:0, books:[], decor:[], storage:[], wordsTotal:0, room:"living", bedroomDecor:[],
   season:"夏", friends:[], festival:"none", rainMin:0, annotations:{}, snacks:[],
   bedLampOn:true, bedResting:false
-}, JSON.parse(localStorage.getItem(KEY)||"{}"));
-function save(){localStorage.setItem(KEY,JSON.stringify(state))}
-/* 權限欄位遷移：舊書視同「帶到客廳、允許批注」，維持原本朋友翻書留字的世界 */
-state.books.forEach(b=>{
-  if(b.visibility===undefined)b.visibility="room";
-  if(b.allowAnnotations===undefined)b.allowAnnotations=(b.visibility==="room");
-  if(b.allowReplies===undefined)b.allowReplies=false;
-  if(b.withdrawn===undefined)b.withdrawn=false;
-});
-/* 公共星軌（第三階段原型）：望遠鏡領取、筆名、公開版本與公共紙條
-   ——仍是本機狀態展示，不是真正的多人隱私系統 */
+};
+/* STATE_DEFAULTS 深拷貝：淺拷貝會讓訪客寫的書推進預設值陣列，新帳號從預設複製時被串味 */
+const state=Object.assign({},JSON.parse(JSON.stringify(STATE_DEFAULTS)),(__bootLoad.data||{}));
+function save(){return RainyStore.saveState(state)}
+/* 權限欄位遷移＋公共星軌預設：登入切換 namespace 換入舊資料時也要重跑，抽成函式 */
+function normalizeState(){
+  state.books.forEach(b=>{
+    if(b.visibility===undefined)b.visibility="room";
+    if(b.allowAnnotations===undefined)b.allowAnnotations=(b.visibility==="room");
+    if(b.allowReplies===undefined)b.allowReplies=false;
+    if(b.withdrawn===undefined)b.withdrawn=false;
+    if(b.publicContent===undefined)b.publicContent=null;
+    if(b.penName===undefined)b.penName=null;
+    if(b.withdrawMode===undefined)b.withdrawMode=null;
+  });
+  if(!state.telescope||typeof state.telescope!=="object")state.telescope={accepted:false,rulesVersion:null,acceptedAt:null};
+  if(state.defaultPenName===undefined)state.defaultPenName="雨中的某人";
+  if(!Array.isArray(state.pubAnnotations))state.pubAnnotations=[];
+}
+normalizeState();
 const PUBLIC_RULES_VERSION="1.0";
-if(!state.telescope||typeof state.telescope!=="object")state.telescope={accepted:false,rulesVersion:null,acceptedAt:null};
-if(state.defaultPenName===undefined)state.defaultPenName="雨中的某人";
-if(!Array.isArray(state.pubAnnotations))state.pubAnnotations=[];
-state.books.forEach(b=>{
-  if(b.publicContent===undefined)b.publicContent=null;
-  if(b.penName===undefined)b.penName=null;
-  if(b.withdrawMode===undefined)b.withdrawMode=null;
-});
+/* 軟刪過濾：所有展示/統計/借閱消費端一律走這裡；deletedAt 的書只活在儲存層 */
+function activeBooks(){return state.books.filter(b=>!b.deletedAt)}
 function canViewPublicStar(){return state.telescope.accepted===true&&state.telescope.rulesVersion===PUBLIC_RULES_VERSION}
 /* 基本內容檢查（前端樣機）：只擋最明顯的傷害字眼；真正的審核在後端階段 */
 const PUB_HARMPAT=/殺了你|去死|死全家|婊子|賤貨|智障|人肉你|你全家/;
@@ -3112,7 +3798,7 @@ function chooseRainGlyph(){
   const index=((rainGlyphIndex%rainGlyphs.length)+rainGlyphs.length)%rainGlyphs.length;
   oracleRain.src=rainGlyphs[index];
   rainGlyphIndex=(index+1)%rainGlyphs.length;
-  localStorage.setItem("rainyPawnRainGlyphIndex",String(rainGlyphIndex));
+  RainyStore.safeSetItem("rainyPawnRainGlyphIndex",String(rainGlyphIndex),{scope:"device"});
 }
 const HAND_TRANSITION_COOLDOWN=60*24*60*60*1000;
 function canShowHandTransition(){
@@ -3133,7 +3819,7 @@ function enterOutside(){
 function startHandTransition(){
   closeDoorViewer();
   if(!canShowHandTransition()){enterOutside();return}
-  localStorage.setItem("rainyPawnHandTransitionAt",String(Date.now()));
+  RainyStore.safeSetItem("rainyPawnHandTransitionAt",String(Date.now()),{scope:"device"});
   chooseRainGlyph();
   handTransition.hidden=false;
 }
@@ -3367,7 +4053,7 @@ function renderShelf(){
   const shelf=$("#shelf");shelf.innerHTML="";
   const rows=[document.createElement("div"),document.createElement("div"),document.createElement("div")];
   rows.forEach(r=>{r.className="row";shelf.appendChild(r)});
-  state.books.forEach((b,i)=>{
+  activeBooks().forEach((b,i)=>{
     const el=document.createElement("button");
     el.className="book"+(b.listed?" listed":"")+(b.loan?" out":"");
     el.style.height=Math.min(95,52+b.words/28)+"%";
@@ -3378,7 +4064,7 @@ function renderShelf(){
     el.addEventListener("click",()=>openRead(b.id));
     rows[i%3].appendChild(el);
   });
-  if(state.books.length===0){
+  if(activeBooks().length===0){
     const h=document.createElement("div");h.className="empty-hint";h.textContent="等你裝訂第一本";
     rows[1].appendChild(h);
   }
@@ -3394,6 +4080,7 @@ function openOv(id){
   setTimeout(()=>(f||p.querySelector(".x")||p).focus(),30);
 }
 function closeOv(id){
+  if(id==="ov-write"&&window.RainyDraft)RainyDraft.flush(); /* 關寫作面板前，草稿先落地 */
   $("#"+id).classList.remove("open");
   if(lastFocus&&lastFocus.focus)lastFocus.focus();
 }
@@ -3419,7 +4106,7 @@ $("#intro-art-img").src=INTRO_ART;
 const introCards=[...introTrack.children];
 let introIdx=0;
 const INTRO_SEEN_KEY="rainyPawnIntroSeen";
-function markIntroSeen(){try{localStorage.setItem(INTRO_SEEN_KEY,"1")}catch(e){}}
+function markIntroSeen(){RainyStore.safeSetItem(INTRO_SEEN_KEY,"1",{scope:"device"})}
 function renderIntro(){
   introTrack.style.transform="translateX(-"+(introIdx*100)+"%)";
   [...introDots.children].forEach((d,i)=>d.classList.toggle("on",i===introIdx));
@@ -3482,8 +4169,8 @@ function sceneHint(key,text){
 }
 const HINTS_ON_KEY="rainyPawnHintsOn";
 function hintDone(k){return localStorage.getItem("rainyPawnHint_"+k)==="1"}
-function setHintDone(k){try{localStorage.setItem("rainyPawnHint_"+k,"1")}catch(e){}}
-function armHints(){try{localStorage.setItem(HINTS_ON_KEY,"1")}catch(e){}renderHints()}
+function setHintDone(k){RainyStore.safeSetItem("rainyPawnHint_"+k,"1",{scope:"device"})}
+function armHints(){RainyStore.safeSetItem(HINTS_ON_KEY,"1",{scope:"device"});renderHints()}
 function renderHints(){
   const on=localStorage.getItem(HINTS_ON_KEY)==="1";
   HINTS.forEach(h=>{
@@ -3532,6 +4219,95 @@ $("#btn-enter").addEventListener("click",()=>{
   lv.querySelector(".lpanel").appendChild(authed);
   const sv=$("#ov-sync");
   let curUser=null, initTried=false;
+
+  /* ===== RainySync 本機讀寫注入（fail-closed：沒有這段，同步模組拒絕動作） ===== */
+  if(window.RainySync){
+    RainySync.configureLocalIO({
+      getActiveNs:function(){ return RainyStore.getNs(); },
+      readLocalState:function(ns){
+        var r=RainyStore.loadNamespaced(ns);
+        return (r.status==="ok"||r.status==="empty")?(r.data||{}):null; // 雲端同形：無封套、含 content
+      },
+      writeLocalState:function(ns,data){
+        var r=RainyStore.saveStateTo(ns,data);
+        return r.ok?{ok:true}:{ok:false,error:r.error};
+      },
+      readLocalBackup:function(ns){ return RainyStore.readBackup(ns); },
+      writeLocalBackup:function(ns,data){ return RainyStore.writeBackup(ns,data); }
+    });
+  }
+
+  /* ===== namespace 切換：in-place 換 state（const 引用不變，所有 listener 存活） ===== */
+  function swapState(loaded){
+    /* 身分一切換，寫作區必須跟著清：文字、編輯中的 id、復原堆疊都不能帶過去 */
+    if(typeof clearWriteSurface==="function")clearWriteSurface();
+    Object.keys(state).forEach(function(k){ delete state[k]; });
+    Object.assign(state, JSON.parse(JSON.stringify(STATE_DEFAULTS)), loaded||{});
+    normalizeState();
+  }
+  function refreshAllViews(){
+    try{
+      applySeason();applyFestival();renderDrops();renderShelf();renderDecor();
+      renderFriends();renderLibShelf();renderSnacks();libSettle();
+      if(typeof renderBedroom==="function")renderBedroom();
+      if(typeof renderCaveBooks==="function")renderCaveBooks();
+    }catch(e){ console.warn("refreshAllViews",e); }
+  }
+  async function enterUserNamespace(user,opts){
+    opts=opts||{};
+    const uid=user.id, ns="user_"+uid;
+    if(window.RainyDraft)RainyDraft.flush();
+    RainyStore.lockNs();
+    /* try/finally：任何例外都不能讓 nsLock 卡在 true，否則之後所有 save() 被悄悄丟掉 */
+    try{
+      RainyStore.recoverPendingTx(ns);
+      const lr=RainyStore.loadNamespaced(ns);
+      if(lr.status==="ok"||lr.status==="empty"){
+        RainyStore.setNs(ns);
+        swapState(lr.data||{});
+        RainyStore.unlockNs();
+        refreshAllViews();
+        const st=await afterLogin(opts.silent);
+        /* 帳號側還是空的、訪客有料、沒搬過 → 每次登入都再問一次（拒絕不寫標記） */
+        if(lr.status==="empty"&&(st==="empty"||!st)){
+          const g=RainyStore.loadNamespaced("guest");
+          const guestHas=g.status==="ok"&&Object.keys(g.data||{}).length>0;
+          if(guestHas&&!RainyStore.isMergeDone(uid)){ openSyncPanel("guest_import"); return; }
+        }
+        return;
+      }
+      if(lr.status==="missing"){
+        RainyStore.setNs(ns); // adapter 自此指向 user namespace（目前為空）
+        const r=await RainySync.loadUserState();
+        if(!r.ok){ RainyStore.unlockNs(); toast(r.error.message||"讀取雲端失敗"); closeAll(); return; }
+        if(r.status==="cloud_applied"){
+          const lr2=RainyStore.loadNamespaced(ns);
+          if(lr2.status==="ok"||lr2.status==="empty")swapState(lr2.data||{});
+          RainyStore.unlockNs(); refreshAllViews();
+          toast("在雲端找到你的雨天，回復好了");
+          closeAll(); return;
+        }
+        if(r.status==="empty"){
+          RainyStore.saveStateTo(ns,{}); // 建立空的 user namespace（之後狀態為 empty 而非 missing）
+          swapState({});
+          RainyStore.unlockNs(); refreshAllViews();
+          const g=RainyStore.loadNamespaced("guest");
+          const guestHas=g.status==="ok"&&Object.keys(g.data||{}).length>0;
+          if(guestHas&&!RainyStore.isMergeDone(uid)){ openSyncPanel("guest_import"); return; }
+          closeAll(); return;
+        }
+        RainyStore.unlockNs();
+        if(r.status==="local_only"){ openSyncPanel("local_only"); return; }
+        if(r.status==="conflict"){ openSyncPanel("conflict"); return; }
+        closeAll(); return;
+      }
+      /* blocked（corrupt / owner_mismatch / schema_bad）：留在 guest，banner 已由 loadNamespaced 釘出 */
+      RainyStore.unlockNs();
+      toast("這個帳號在本機的資料讀取失敗，先留在訪客模式；原資料沒有被更動");
+      closeAll();
+    }finally{ RainyStore.unlockNs(); }
+  }
+
   async function ensureSync(){
     if(!window.RainySync)return null;
     if(initTried)return {ok:true,user:curUser};
@@ -3564,6 +4340,9 @@ $("#btn-enter").addEventListener("click",()=>{
     if(kind==="local_only"){
       msg.textContent="這台裝置有一份雨天，雲端還是空的。要上傳保管嗎？";
       b1.textContent="上傳到雲端"; b2.style.display="none";
+    }else if(kind==="guest_import"){
+      msg.textContent="這台裝置有一份訪客寫下的雨天，要搬進你的帳號嗎？（訪客那份會原樣保留）";
+      b1.textContent="搬進帳號"; b2.textContent="留在訪客，不搬"; b2.style.display="";
     }else{
       msg.textContent="這台裝置和雲端各有一份不同的雨天，要留哪一份？";
       b1.textContent="留雲端的"; b2.textContent="留這台裝置的"; b2.style.display="";
@@ -3572,6 +4351,19 @@ $("#btn-enter").addEventListener("click",()=>{
   }
   function closeAll(){ sv.classList.remove("on"); lv.classList.remove("on"); refreshAuthView(); }
   sv.querySelector(".s1").addEventListener("click",async()=>{
+    if(sv.dataset.kind==="guest_import"){
+      const uid=curUser&&curUser.id;
+      if(!uid){ closeAll(); return; }
+      const g=RainyStore.loadNamespaced("guest");
+      const mr=RainyStore.mergeGuestIntoUser(uid, g.data||{}, {});
+      if(!mr.ok){ toast("搬遷失敗，兩份資料都還在原處"); return; }
+      const lr=RainyStore.loadNamespaced("user_"+uid);
+      if(lr.status==="ok"||lr.status==="empty")swapState(lr.data||{});
+      refreshAllViews();
+      toast("訪客的雨天搬進來了（訪客那份原樣保留）");
+      openSyncPanel("local_only"); /* 順勢問要不要上傳保管 */
+      return;
+    }
     if(sv.dataset.kind==="local_only"){
       const r=await RainySync.saveUserState();
       toast(r.ok?"已上傳到雲端，雨天有人保管了":("上傳失敗："+r.error.message));
@@ -3583,20 +4375,26 @@ $("#btn-enter").addEventListener("click",()=>{
     }
   });
   sv.querySelector(".s2").addEventListener("click",async()=>{
+    if(sv.dataset.kind==="guest_import"){
+      closeAll();
+      toast("訪客那份留在原處，之後登入還會再問你");
+      return;
+    }
     const r=await RainySync.resolveConflict("local");
     toast(r.ok?"已用這台裝置的雨天覆蓋雲端":("失敗："+r.error.message));
     closeAll();
   });
   sv.querySelector(".s3").addEventListener("click",closeAll);
 
-  async function afterLogin(){
+  async function afterLogin(silent){
     const r=await RainySync.loadUserState();
-    if(!r.ok){ toast(r.error.message||"讀取雲端失敗"); closeAll(); return; }
-    if(r.status==="cloud_applied"){ toast("在雲端找到你的雨天，正在回復…"); setTimeout(()=>location.reload(),900); return; }
-    if(r.status==="in_sync"){ toast("本機與雲端是同一份雨天"); closeAll(); return; }
-    if(r.status==="local_only"){ openSyncPanel("local_only"); return; }
-    if(r.status==="conflict"){ openSyncPanel("conflict"); return; }
+    if(!r.ok){ toast(r.error.message||"讀取雲端失敗"); closeAll(); return null; }
+    if(r.status==="cloud_applied"){ toast("在雲端找到你的雨天，正在回復…"); setTimeout(()=>location.reload(),900); return r.status; }
+    if(r.status==="in_sync"){ if(!silent)toast("本機與雲端是同一份雨天"); closeAll(); return r.status; }
+    if(r.status==="local_only"){ if(silent){ closeAll(); return r.status; } openSyncPanel("local_only"); return r.status; }
+    if(r.status==="conflict"){ openSyncPanel("conflict"); return r.status; }
     closeAll(); /* empty：兩邊都還沒有雨天 */
+    return r.status;
   }
 
   const stat=(m,err)=>{ const el=lv.querySelector(".lstat"); if(el){ el.textContent=m; el.classList.toggle("err",!!err); } };
@@ -3633,7 +4431,7 @@ $("#btn-enter").addEventListener("click",()=>{
       stat("");
       curUser=r.user;
       toast(mode==="建立帳號"?"帳號建好了，歡迎":"歡迎回來");
-      await afterLogin();
+      await enterUserNamespace(curUser);
     }catch(e){
       go.disabled=false; go.textContent=go.dataset.label;
       const m=zhErr((e&&e.message)||String(e));
@@ -3647,9 +4445,28 @@ $("#btn-enter").addEventListener("click",()=>{
     toast(r.ok?"已同步到雲端 ✓":("同步失敗："+r.error.message));
   });
   authed.querySelector(".lout").addEventListener("click",async()=>{
+    if(window.RainyDraft)RainyDraft.flush();
     await RainySync.signOut();
-    curUser=null; refreshAuthView();
-    toast("登出了，這台裝置的雨天還在");
+    curUser=null;
+    RainyStore.lockNs();
+    try{
+      RainyStore.setNs("guest");
+      const g=RainyStore.loadNamespaced("guest");
+      if(g.status==="ok"||g.status==="empty")swapState(g.data||{});
+      else swapState({}); /* missing 或被鎖也要換空預設：帳號資料絕不留在訪客畫面、絕不寫進 guest */
+      refreshAllViews();
+      refreshAuthView();
+      toast("登出了，回到訪客的雨天（帳號那份留在這台裝置上）");
+    }finally{ RainyStore.unlockNs(); }
+  });
+
+  /* 開機：有 session 就切進該帳號的 namespace（整段 script 解析完後才跑） */
+  ensureSync().then(function(r){
+    if(r&&r.ok&&r.user){
+      curUser=r.user;
+      enterUserNamespace(curUser,{silent:true});
+    }
+    refreshAuthView();
   });
 })();
 
@@ -3668,9 +4485,52 @@ ta.addEventListener("input",()=>{
   const n=ta.value.trim().length;
   wc.textContent=n+" 字";
   bindBtn.disabled=n===0;
+  scheduleDraft();
 });
 let editingId=null; /* 從「我的書架」進入的編輯模式 */
-$("#btn-write").addEventListener("click",()=>{editingId=null;editFromShelf=false;bindBtn.textContent="裝訂成書";resetUndo(ti.value,ta.value);openOv("ov-write")});
+
+/* ---- 草稿自動保存：新書未定裝前，500ms debounce＋2.5s maxWait 寫進 notes 索引的 drafts ---- */
+const DRAFT_KEY="newBook";
+let draftSaver=null,draftSaverNs=null;
+function draftStatusEl(){return $("#write-save-state")}
+function onDraftSave(ns,draft){
+  const r=RainyStore.saveDraft(ns,draft);
+  const el=draftStatusEl();
+  if(!el)return;
+  if(r.ok){
+    const d=new Date(),pad=n=>String(n).padStart(2,"0");
+    el.textContent="草稿已自動保存 "+pad(d.getHours())+":"+pad(d.getMinutes());
+  }else el.textContent="草稿保存失敗（內容還在編輯器裡）";
+}
+function getDraftSaver(){
+  const ns=RainyStore.getNs();
+  if(!draftSaver||draftSaverNs!==ns){draftSaver=RainyStore.makeDraftSaver(ns,onDraftSave);draftSaverNs=ns}
+  return draftSaver;
+}
+function scheduleDraft(){
+  if(editingId)return; /* 編輯既有書：原書已是備份，不另存草稿 */
+  if(!ta.value.trim()&&!ti.value.trim())return; /* 全空不佔草稿位 */
+  getDraftSaver().schedule({key:DRAFT_KEY,title:ti.value,content:ta.value});
+}
+window.RainyDraft={
+  flush:function(){ if(draftSaver)draftSaver.flush(); },
+  /* 裝訂成功清草稿前，先把還沒發射的 debounce 計時器取消——
+   * 不然裝訂後 500ms 內計時器落地，會把剛裝訂的內容又存回草稿（殘影） */
+  clear:function(){ if(draftSaver&&draftSaver.cancel)draftSaver.cancel(); const r=RainyStore.clearDraft(RainyStore.getNs(),DRAFT_KEY); const el=draftStatusEl(); if(el&&r.ok)el.textContent=""; }
+};
+addEventListener("pagehide",()=>{if(draftSaver)draftSaver.flush()});
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden"&&draftSaver)draftSaver.flush()});
+
+$("#btn-write").addEventListener("click",()=>{
+  editingId=null;editFromShelf=false;bindBtn.textContent="裝訂成書";
+  const d=RainyStore.loadDraft(RainyStore.getNs(),DRAFT_KEY);
+  if(d&&(d.content||d.title)&&!ta.value){
+    ti.value=d.title||"";ta.value=d.content||"";
+    ta.dispatchEvent(new Event("input"));
+    toastNote("幫你找回了上次沒裝訂的草稿。");
+  }
+  resetUndo(ti.value,ta.value);openOv("ov-write")
+});
 bindBtn.addEventListener("click",()=>{
   const content=ta.value.trim();
   if(!content)return;
@@ -3687,9 +4547,11 @@ bindBtn.addEventListener("click",()=>{
     }
   }
   const shared=vis!=="private"&&!blocked;
+  let boundBook=null;const wasEditing=!!editingId;
   if(editingId){
     const b=state.books.find(x=>x.id===editingId);
     if(b){
+      boundBook=b;
       const wasPublic=b.visibility==="public";
       b.title=title;b.content=content;b.words=words;
       if(!blocked){
@@ -3703,7 +4565,7 @@ bindBtn.addEventListener("click",()=>{
     }
     editingId=null;bindBtn.textContent="裝訂成書";
   }else{
-    state.books.push({
+    boundBook={
       id:"b"+Date.now().toString(36),
       title,content,words,
       ts:Date.now(),
@@ -3716,10 +4578,32 @@ bindBtn.addEventListener("click",()=>{
       publicContent:(vis==="public"&&!blocked)?content:null,
       penName:(vis==="public"&&!blocked)?penName:null,
       withdrawMode:null
-    });
+    };
+    state.books.push(boundBook);
     state.wordsTotal+=words;
   }
-  save();renderShelf();
+  /* 筆記底座寫穿＋狀態保存：兩邊都寫成才算完成。
+   * 任何一邊失敗：保留文字與編輯器、不清草稿、不關窗——裝訂鈕變「重新裝訂」再試 */
+  let persistOk=true;
+  if(boundBook){
+    const nr=RainyStore.syncBookNotes(RainyStore.getNs(),boundBook);
+    if(!nr.ok)persistOk=false;
+  }
+  const sr=save();
+  if(!sr.ok)persistOk=false;
+  if(!persistOk){
+    if(boundBook){
+      if(!wasEditing){ /* 新書：撤回這次推送，重試走原本的新書路徑（才會清草稿、不累加字數） */
+        const ix=state.books.indexOf(boundBook); if(ix>=0)state.books.splice(ix,1);
+        state.wordsTotal=before;
+      }else{ editingId=boundBook.id; } /* 舊書：留在編輯模式，重試走更新路徑 */
+      bindBtn.textContent="重新裝訂";
+    }
+    toast("儲存失敗：文字還在編輯器裡，沒有消失。空間不足或切換中都可能造成，之後再按一次裝訂。",5200);
+    return;
+  }
+  if(!wasEditing&&window.RainyDraft)RainyDraft.clear(); /* 新書裝訂成功才清草稿；編輯舊書不動它 */
+  renderShelf();
   if($("#ov-shelf").classList.contains("open"))renderMyShelf();
   ta.value="";ti.value="";wc.textContent="0 字";bindBtn.disabled=true;
   resetUndo("","");
@@ -3757,11 +4641,20 @@ function snapNow(){
 }
 function scheduleSnap(){clearTimeout(undoTimer);undoTimer=setTimeout(snapNow,700)}
 function resetUndo(t,c){clearTimeout(undoTimer);undoStack.length=0;redoStack.length=0;undoLast={t,c};prevCLen=c.length;syncUndoBtns()}
+/* 身分切換收尾：先把目前草稿沖進「舊」namespace，再清空編輯器——
+ * A 沒裝訂的文字不能出現在 B 的編輯器裡，復原堆疊也一樣 */
+function clearWriteSurface(){
+  if(window.RainyDraft)RainyDraft.flush();
+  editingId=null;editFromShelf=false;bindBtn.textContent="裝訂成書";
+  ta.value="";ti.value="";wc.textContent="0 字";bindBtn.disabled=true;
+  resetUndo("","");
+  const el=draftStatusEl();if(el)el.textContent="";
+}
 ta.addEventListener("input",()=>{
   if(prevCLen>50&&ta.value.length===0)toast("整篇都刪掉了——別急，右上角的「復原」可以拿回來。",3600);
   prevCLen=ta.value.length;scheduleSnap();
 });
-ti.addEventListener("input",scheduleSnap);
+ti.addEventListener("input",()=>{scheduleSnap();scheduleDraft()});
 function applySnap(s){ti.value=s.t;ta.value=s.c;undoLast={t:s.t,c:s.c};prevCLen=s.c.length;ta.dispatchEvent(new Event("input"))}
 $("#btn-undo").addEventListener("click",()=>{
   clearTimeout(undoTimer);snapNow();
@@ -3884,10 +4777,10 @@ function renderMyShelf(){
   const q=($("#ms-q").value||"").trim().toLowerCase();
   const hit=b=>!q||b.title.toLowerCase().includes(q)||b.content.toLowerCase().includes(q);
   const secs=[
-    ["私人筆記",state.books.filter(b=>!b.loan&&b.visibility==="private"&&hit(b))],
-    ["客廳分享",state.books.filter(b=>!b.loan&&b.visibility==="room"&&hit(b))],
-    ["公共星軌投稿",state.books.filter(b=>!b.loan&&b.visibility==="public"&&!b.withdrawn&&hit(b))],
-    ["借出的書",state.books.filter(b=>!!b.loan&&hit(b))]
+    ["私人筆記",activeBooks().filter(b=>!b.loan&&b.visibility==="private"&&hit(b))],
+    ["客廳分享",activeBooks().filter(b=>!b.loan&&b.visibility==="room"&&hit(b))],
+    ["公共星軌投稿",activeBooks().filter(b=>!b.loan&&b.visibility==="public"&&!b.withdrawn&&hit(b))],
+    ["借出的書",activeBooks().filter(b=>!!b.loan&&hit(b))]
   ];
   const EMPTY={0:"還沒有私人筆記。寫完裝訂時選「我的書架」就好。",1:"客廳還空著。裝訂時選「帶到客廳」，朋友來了能翻。",2:"還沒有投稿。裝訂時選「投稿到公共星軌」，它會出現在輪子上。",3:"目前沒有書在外面。放進舊雨書盒的書被借走時，會出現在這裡。"};
   let total=0;
@@ -3995,6 +4888,7 @@ function msFillSet(b,row){
 }
 let editFromShelf=false;
 function openWriteEdit(id){
+  if(window.RainyDraft)RainyDraft.flush(); /* 切書前，手上的草稿先落地 */
   const b=state.books.find(x=>x.id===id);if(!b)return;
   editingId=id;
   editFromShelf=$("#ov-shelf").classList.contains("open");
@@ -4022,13 +4916,16 @@ let burnId=null;
 $("#btn-burn").addEventListener("click",()=>{
   const b=state.books.find(x=>x.id===readingId);if(!b)return;
   burnId=b.id;
-  $("#burn-q").textContent="你確定嗎？《"+b.title+"》——"+b.words+" 個字，燒了就真的沒了，灰都收不回來。";
+  $("#burn-q").textContent="你確定嗎？《"+b.title+"》——"+b.words+" 個字。燒掉之後，書架上就再也看不到它了；不過灰燼還收在壁爐底——這台裝置和雲端各留著一份，目前還沒有辦法真的燒乾淨。";
   openOv("ov-burn");
 });
 $("#btn-burn-yes").addEventListener("click",()=>{
   const b=state.books.find(x=>x.id===burnId);
   if(!b){closeOv("ov-burn");burnId=null;return}
-  state.books=state.books.filter(x=>x.id!==burnId);
+  /* 軟刪：書與筆記文件都只標 deletedAt，實體資料保留（namespace 內可救援） */
+  b.deletedAt=Date.now();
+  if(b.visibility==="public"&&!b.withdrawn){b.withdrawn=true;b.pubDate=null}
+  RainyStore.markBookDeleted(RainyStore.getNs(),b.id,b.deletedAt);
   state.wordsTotal=Math.max(0,state.wordsTotal-b.words);
   save();renderShelf();renderLibShelf();
   closeOv("ov-burn");closeOv("ov-read");
@@ -4059,7 +4956,7 @@ const CAVE_SLOTS=[
 ];
 function renderCaveBooks(){
   const box=$("#cave-books"); box.innerHTML="";
-  state.books.slice(0,CAVE_SLOTS.length).forEach((b,i)=>{
+  activeBooks().slice(0,CAVE_SLOTS.length).forEach((b,i)=>{
     const s=CAVE_SLOTS[i];
     const el=document.createElement("button");
     el.className="cave-book "+s.o+(b.loan?" out":"");
@@ -4318,7 +5215,7 @@ const WH_PUBLIC=[
 let whRunning=false,whRAF=null,whTheta=0.2,whSpeed=WH_SPEED,whTarget=WH_SPEED,whLast=0,whSel=-1,whFilter=-1,whDrawersBuilt=false,whMode="heliocentric";
 const WH_MODE_COPY={heliocentric:{name:"日心說",quote:"世界不繞著我轉，但我仍然在其中。",hint:"太陽是暫時的共同中心。"},geocentric:{name:"地心說",quote:"我站在哪裡，世界就從哪裡開始。",hint:"觀看者的位置成為暫時的中心。"}};
 function setWhMode(mode,announce=true){whMode=mode;const v=$("#wheelview"),copy=WH_MODE_COPY[mode];v.classList.toggle("geo",mode==="geocentric");$("#wh-mode-quote").textContent=copy.quote;$("#wh-mode-toggle").textContent="切換至"+(mode==="geocentric"?"日心說":"地心說");$("#wh-mode-toggle").setAttribute("aria-label","目前是"+copy.name+"，切換觀看框架");if(announce)toast(copy.name+"："+copy.hint,2800)}
-function whBooks(){const own=state.books.filter(b=>b.visibility==="public"&&!b.withdrawn&&!b.loan);return own.length?own:WH_PUBLIC}
+function whBooks(){const own=activeBooks().filter(b=>b.visibility==="public"&&!b.withdrawn&&!b.loan);return own.length?own:WH_PUBLIC}
 function whCabinBooks(i){const all=whBooks();return [all[i%all.length]]}
 function whReason(b){if(b.cat)return b.cat;const a=(state.annotations[b.id]||[]).length,c=(b.cards||[]).length;const bits=[];if(a)bits.push("批注 ×"+a);if(c)bits.push("歸還卡 ×"+c);if(b.loan)bits.push("借出中");return bits.join(" · ")||"公共資料 · 尚未分類"}
 /* 標語膠囊：報完訊息就退場，不站在輪子前面擋風景 */
@@ -4696,8 +5593,8 @@ function friendBubble(){
 function noteLoop(){
   clearInterval(noteTimer);
   noteTimer=setInterval(()=>{
-    if(state.friends.length===0||state.books.length===0)return;
-    const pool=state.books.filter(b=>!b.loan&&!b.withdrawn&&(b.visibility==="room"||b.visibility==="public")&&b.allowAnnotations);
+    if(state.friends.length===0||activeBooks().length===0)return;
+    const pool=activeBooks().filter(b=>!b.loan&&!b.withdrawn&&(b.visibility==="room"||b.visibility==="public")&&b.allowAnnotations);
     if(!pool.length)return;
     const f=FRIENDS.filter(x=>state.friends.includes(x.id))[Math.floor(Math.random()*state.friends.length)];
     const b=pool[Math.floor(Math.random()*pool.length)];
@@ -4716,7 +5613,7 @@ function renderNotes(id){
   if(!list.length){zone.hidden=true;return}
   zone.hidden=false;
   $("#read-notes-list").innerHTML=list.map(n=>
-    '<div class="margin-note"><b>'+n.by+'</b>'+n.text+'</div>'
+    '<div class="margin-note"><b>'+esc(n.by)+'</b>'+esc(n.text)+'</div>'
   ).join("");
 }
 
@@ -4912,7 +5809,7 @@ function renderCards(b){
 /* 牆上小書盒的迷你書脊 */
 function renderLibShelf(){
   const box=$("#lib-minis");box.innerHTML="";
-  const listed=state.books.filter(b=>b.listed);
+  const listed=activeBooks().filter(b=>b.listed);
   listed.slice(0,5).forEach((b,i)=>{
     const m=document.createElement("span");
     m.className="mini"+(b.loan?" out":"");
@@ -4926,8 +5823,8 @@ function renderLibShelf(){
 $("#lib-shelf").addEventListener("click",()=>{renderLib();openOv("ov-lib")});
 function renderLib(){
   const body=$("#lib-body");body.innerHTML="";
-  const listed=state.books.filter(b=>b.listed);
-  const unlisted=state.books.filter(b=>!b.listed);
+  const listed=activeBooks().filter(b=>b.listed);
+  const unlisted=activeBooks().filter(b=>!b.listed);
   const secT=t=>{const d=document.createElement("div");d.className="lib-sec-t";d.textContent=t;body.appendChild(d)};
   const hint=t=>{const d=document.createElement("div");d.className="lib-hint";d.textContent=t;body.appendChild(d)};
   const mkRow=(b,onShelf)=>{
@@ -4959,17 +5856,17 @@ function renderLib(){
   if(!listed.length)hint("盒裡還空著。放一本進去，才有人借。");
   listed.forEach(b=>mkRow(b,true));
   secT("房間書架 · 未上架 "+unlisted.length+" 本");
-  if(!unlisted.length)hint(state.books.length?"全部都放進書盒了。":"先在書桌寫筆記，裝訂成書之後才能放進書盒。");
+  if(!unlisted.length)hint(activeBooks().length?"全部都放進書盒了。":"先在書桌寫筆記，裝訂成書之後才能放進書盒。");
   unlisted.forEach(b=>mkRow(b,false));
   hint("借出去的書會自己回來——回來時夾一張蓋日期章的歸還卡。草稿始終在你桌上，隨時能重讀。");
 }
 /* 借閱循環：同一時間只借出一本 */
 function libTick(){
   const now=Date.now();
-  const anyLoan=state.books.some(b=>b.listed&&b.loan);
+  const anyLoan=activeBooks().some(b=>b.listed&&b.loan);
   let borrowed=false;
   state.books.forEach(b=>{
-    if(!b.listed)return;
+    if(b.deletedAt||!b.listed)return;
     b.cards=b.cards||[];
     if(b.loan){
       if(now-b.loan.since>=b.loan.due){
@@ -5001,7 +5898,7 @@ function libLoop(){setTimeout(()=>{libTick();libLoop()},25000)}
 function libSettle(){
   const now=Date.now();let back=[],backBy=[];
   state.books.forEach(b=>{
-    if(b.listed&&b.loan&&now-b.loan.since>=b.loan.due){
+    if(!b.deletedAt&&b.listed&&b.loan&&now-b.loan.since>=b.loan.due){
       const r=LIB_READERS.find(x=>x.name===b.loan.by)||LIB_READERS[0];
       b.cards=b.cards||[];
       if(b.cards.length<6)b.cards.push({by:r.name,text:r.cards[Math.floor(Math.random()*r.cards.length)],ts:now});
@@ -5035,7 +5932,7 @@ resize();resize2();applySeason();applyFestival();renderDrops();renderShelf();ren
 if(state.friends.length>0){friendBubble();noteLoop()}
 requestAnimationFrame(drawSky);requestAnimationFrame(drawSky2);
 wetLoop();puddleLoop();showerLoop();rainbowLoop();libLoop();
-setTimeout(()=>{if(state.books.length===0)toastNote("點書桌上的筆記本，開始裝訂你的第一本。")},1500);
+setTimeout(()=>{if(activeBooks().length===0)toastNote("點書桌上的筆記本，開始裝訂你的第一本。")},1500);
 </script>
 <!-- 裝飾品 SVG 模板（隱藏） -->
 <div hidden>

@@ -877,6 +877,7 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
   .mulled{width:11px}
   .cave-vignette{box-shadow:inset 0 0 170px 55px rgba(3,4,8,.7)}
   .panel{max-height:calc(100% - 40px)}
+  #note-content{min-height:22dvh}
   @keyframes fly-across{from{transform:translateX(-140px)}to{transform:translateX(580px)}}
 }
 
@@ -1215,7 +1216,7 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
 #btn-undo{margin-left:auto}
 
 /* 寫作覆層 */
-.write-body{padding:18px;display:flex;flex-direction:column;gap:12px;flex:1;min-height:0}
+.write-body{padding:18px;display:flex;flex-direction:column;gap:12px;flex:1;min-height:0;overflow-y:auto}
 #note-title{
   background:transparent;border:none;border-bottom:1px dashed rgba(232,224,210,.3);
   color:var(--paper);font-family:var(--book-font);font-size:22px;
@@ -1420,6 +1421,9 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
 .format-help-btn:hover{color:var(--lamp);border-color:rgba(201,168,106,.5)}
 .format-help{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px}
 .format-help[hidden]{display:none}
+.bo-toggle{width:100%;display:flex;justify-content:space-between;align-items:center;gap:10px;margin:0 0 8px}
+.bo-toggle .bo-cur{font-size:11px;color:var(--paper-dim);letter-spacing:.04em}
+.bind-opts-body[hidden]{display:none}
 .format-help code{border:1px solid rgba(232,224,210,.2);border-radius:6px;padding:3px 9px;font-size:12px;color:rgba(232,224,210,.75);background:rgba(232,224,210,.04)}
 /* ---- 「？」問題式哲學索引 ---- */
 .idea-index{margin-top:24px;padding-top:18px;border-top:1px solid rgba(232,224,210,.12)}
@@ -2174,6 +2178,7 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
   <button class="hud-btn" id="btn-friend" aria-pressed="false">邀請朋友</button>
   <button class="hud-btn" id="btn-sound" aria-pressed="false" aria-label="雨聲開關">雨聲 關</button>
   <button class="hud-btn" id="btn-help" aria-label="玩法說明">?</button>
+  <button class="hud-btn" id="btn-whoami" aria-label="帳號、同步與登出入">☂ 訪客</button>
 </header>
 <div class="season-tag" id="season-tag">窗外 · 夏季雷雨</div>
 
@@ -2198,7 +2203,8 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
       </div>
     </div>
     <div class="bind-opts" id="bind-opts">
-      <div class="bo-q">這本筆記要放在哪裡？</div>
+      <button id="btn-dest-toggle" type="button" class="format-help-btn bo-toggle" aria-expanded="true">📍 這本筆記要放在哪裡？<span class="bo-cur" id="dest-summary">我的書架（私人）</span></button>
+      <div id="bind-opts-body" class="bind-opts-body">
       <label class="bo-r"><input type="radio" name="bindvis" value="private" checked> 我的書架（私人）</label>
       <label class="bo-r"><input type="radio" name="bindvis" value="room"> 帶到客廳</label>
       <label class="bo-r"><input type="radio" name="bindvis" value="public"> 投稿到公共星軌</label>
@@ -2210,6 +2216,7 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
         <div class="penline"><span>筆名</span><input type="text" id="bind-penname" maxlength="12" placeholder="雨中的某人"></div>
         <label class="pen-anon"><input type="checkbox" id="bind-anon"> 這篇不署名</label>
         <p class="pen-note">你現在要送上的是一個公共版本，不一定是你的私人原稿。請確認你願意讓陌生人看見這一片內容。若文章之後撤回，正常公開批注可能仍會保留。</p>
+      </div>
       </div>
     </div>
     <div class="write-foot">
@@ -2541,10 +2548,18 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
     }
   }
 
-  // 讀本機：回傳「雲端同形」的資料（無封套、含 content），由 App 端解封套
-  function readLocal() {
+  /* 只准在「這個帳號的書房」裡讀寫：session 還在但 App 停在別的空間（例如你選了先用訪客身分）時，
+     讀會把雲端倒進訪客空間、寫會把訪客資料蓋上帳號雲端——兩個方向都要擋（三審裁決） */
+  function nsMatchesActive(user) {
+    try { return localIO.getActiveNs() === ('user_' + user.id); } catch (e) { return false; }
+  }
+
+  // 讀本機：回傳「雲端同形」的資料（無封套、含 content），由 App 端解封套。
+  // 三審裁決：ns 一律由呼叫方在「第一個網路 await 之前」算定傳入——方法中途絕不再問 getActiveNs()，
+  // 否則等待回應期間你切了訪客，回來後會把帳號的雲端資料讀寫進 guest 空間（T16e 守的就是這條）
+  function readLocal(ns) {
     try {
-      var data = localIO.readLocalState(localIO.getActiveNs());
+      var data = localIO.readLocalState(ns);
       return (data && typeof data === 'object' && !Array.isArray(data)) ? data : null;
     } catch (e) {
       return null;
@@ -2552,9 +2567,9 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
   }
 
   // 寫本機：App 端負責封套與 safeSetItem；失敗必須回 { ok:false }
-  function writeLocal(state) {
+  function writeLocal(ns, state) {
     try {
-      var r = localIO.writeLocalState(localIO.getActiveNs(), state);
+      var r = localIO.writeLocalState(ns, state);
       return !!(r && r.ok);
     } catch (e) {
       return false;
@@ -2649,6 +2664,8 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
     var noio = needIO(); if (noio) return noio;
     var user = await currentUser();
     if (!user) return fail('NOT_SIGNED_IN', '請先登入。');
+    if (!nsMatchesActive(user)) return fail('NS_MISMATCH', '目前不在這個帳號的空間，已拒絕讀寫（保護兩邊的雨天）。');
+    var ns = 'user_' + user.id; /* 算定後不再變：就算等待期間你切了訪客，寫入也一定是這個帳號自己的空間 */
 
     var res = await client.from(TABLE)
       .select('state, schema_version, updated_at')
@@ -2657,7 +2674,7 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
     if (res.error) return fail('LOAD_FAILED', res.error.message);
 
     var row = res.data;
-    var local = readLocal();
+    var local = readLocal(ns);
     var localHas = hasData(local);
 
     if (row && row.schema_version > SCHEMA_VERSION) {
@@ -2670,7 +2687,7 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
     var cloud = row.state;
 
     if (!localHas) {
-      if (!writeLocal(cloud)) return fail('LOCAL_WRITE_FAILED', '無法寫入本機儲存空間。');
+      if (!writeLocal(ns, cloud)) return fail('LOCAL_WRITE_FAILED', '無法寫入本機儲存空間。');
       return ok(Object.assign({ status: 'cloud_applied', state: cloud }, meta));
     }
     if (stable(local) === stable(cloud)) return ok(Object.assign({ status: 'in_sync' }, meta));
@@ -2683,8 +2700,10 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
     var noio = needIO(); if (noio) return noio;
     var user = await currentUser();
     if (!user) return fail('NOT_SIGNED_IN', '請先登入。');
+    if (!nsMatchesActive(user)) return fail('NS_MISMATCH', '目前不在這個帳號的空間，已拒絕上傳（保護雲端不被別的空間覆蓋）。');
+    var ns = 'user_' + user.id; /* 算定後不再變：就算等待期間你切了訪客，讀的也一定是這個帳號自己的空間 */
 
-    var s = state === undefined ? readLocal() : state;
+    var s = state === undefined ? readLocal(ns) : state;
     if (!hasData(s)) return fail('NOTHING_TO_SAVE', '沒有可上傳的狀態（已避免用空資料覆蓋雲端）。');
     if (JSON.stringify(s).length > MAX_BYTES) return fail('STATE_TOO_LARGE', '狀態資料過大，無法同步。');
 
@@ -2702,23 +2721,27 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
   async function resolveConflict(choice) {
     var bad = needClient(); if (bad) return bad;
     var noio = needIO(); if (noio) return noio;
-    if (choice === 'local') return saveUserState(readLocal());
-    if (choice !== 'cloud') return fail('BAD_CHOICE', "choice 只能是 'cloud' 或 'local'。");
+    if (choice !== 'cloud' && choice !== 'local') return fail('BAD_CHOICE', "choice 只能是 'cloud' 或 'local'。");
 
     var user = await currentUser();
     if (!user) return fail('NOT_SIGNED_IN', '請先登入。');
+    if (!nsMatchesActive(user)) return fail('NS_MISMATCH', '目前不在這個帳號的空間，已拒絕讀寫（保護兩邊的雨天）。');
+    var ns = 'user_' + user.id; /* 算定後不再變：就算等待期間你切了訪客，讀寫也一定是這個帳號自己的空間 */
+
+    if (choice === 'local') return saveUserState(readLocal(ns)); /* saveUserState 內會再對一次閘門＋再算一次 ns（雙層） */
+
     var res = await client.from(TABLE).select('state').eq('user_id', user.id).maybeSingle();
     if (res.error) return fail('LOAD_FAILED', res.error.message);
     if (!res.data) return fail('NO_CLOUD_DATA', '雲端沒有資料可套用。');
 
-    var local = readLocal();
+    var local = readLocal(ns);
     if (hasData(local)) {
       var bw = null;
-      try { bw = localIO.writeLocalBackup(localIO.getActiveNs(), { savedAt: new Date().toISOString(), state: local }); }
+      try { bw = localIO.writeLocalBackup(ns, { savedAt: new Date().toISOString(), state: local }); }
       catch (e) { bw = null; }
       if (!bw || !bw.ok) return fail('BACKUP_FAILED', '無法備份本機資料，已取消覆蓋。');
     }
-    if (!writeLocal(res.data.state)) return fail('LOCAL_WRITE_FAILED', '無法寫入本機儲存空間。');
+    if (!writeLocal(ns, res.data.state)) return fail('LOCAL_WRITE_FAILED', '無法寫入本機儲存空間。');
     return ok({ state: res.data.state });
   }
 
@@ -2784,6 +2807,7 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
   function notesBookKey(ns, bookId) { return 'rainy_pawn_notes_v2_' + ns + '_book_' + bookId; }
   function notesTxKey(ns) { return 'rainy_pawn_notes_v2_' + ns + '_tx'; }
   function mergeDoneKey(uid) { return 'rainy_pawn_migr_' + uid + '_done'; }
+  function lastSyncKey(uid) { return 'rainy_pawn_lsync_' + uid; } /* C6：裝置專屬，不進同步狀態——放進 state 會讓本機永遠比雲端多一個欄位，每次登入都誤判衝突 */
   function ownerOfNs(ns) { return ns === 'guest' ? 'guest' : String(ns).replace(/^user_/, ''); }
   // 注意：Supabase uid 為 UUID（只含 hex 與連字號，無底線），key 解析依賴這個前提
   function nsOfStateKey(key) {
@@ -3086,8 +3110,10 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
     var beforeHash = hashStr(txSnapshot(ns, bookIds));
     /* 先蓋 lastSavedAt 再算 afterHash——順序反了雜湊永遠對不上，恢復時會把正常資料誤鎖 */
     if (index) index.lastSavedAt = new Date().toISOString();
+    /* index:null＝索引原樣保留：afterHash 必須代表「寫完後磁碟該有的樣子」，所以既有索引也要算進去。
+       只算文件的話，「全寫完但沒蓋 commit」的中斷會對不上 afterHash、掉進逐 key 驗證兜底——那是意外安全，不是設計安全 */
     var afterStr = bookDocs.map(function (d) { return JSON.stringify(d); }).join('')
-      + (index ? JSON.stringify(index) : '');
+      + (index ? JSON.stringify(index) : (rawGet(notesIndexKey(ns)) || ''));
     var tx = {
       state: 'pending', ns: ns, ownerId: ownerOfNs(ns), bookIds: bookIds,
       startedAt: new Date().toISOString(), beforeHash: beforeHash, afterHash: hashStr(afterStr)
@@ -3243,17 +3269,28 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
   }
 
   /* ---------- guest → user 複製（必須使用者明確確認才呼叫；guest 原檔不動） ---------- */
+  /* A1 鐵律：只複製「新增」書的筆記文件；分叉書使用新 id，絕不覆蓋帳號已有的筆記文件與索引。
+     userState 傳 null＝從帳號 ns 現況載入（防止呼叫方拿 {} 把帳號整包蓋掉）。 */
   function mergeGuestIntoUser(uid, guestState, userState) {
     var ns = 'user_' + uid;
+    if (userState == null) {
+      var ulr = loadNamespaced(ns);
+      userState = (ulr.status === 'ok' || ulr.status === 'empty') ? (ulr.data || {}) : {};
+      if (ulr.status !== 'ok' && ulr.status !== 'empty' && ulr.status !== 'missing') {
+        return { ok: false, error: 'user_state_unreadable' }; /* 帳號資料讀不出來就不准動 */
+      }
+    }
     var guestBooks = Array.isArray(guestState.books) ? guestState.books : [];
-    var userBooks = Array.isArray(userState.books) ? userState.books : [];
+    var userBooks = Array.isArray(userState.books) ? userState.books.slice() : [];
     var byId = {};
     userBooks.forEach(function (b) { if (b && b.id) byId[b.id] = b; });
     var added = 0, skipped = 0, forked = 0;
+    var newBookIds = []; /* 真正新進帳號的書 id（新增＋分叉），只有它們可以複製筆記文件 */
+    var forkMap = {};    /* 分叉：guest 舊 id → 帳號新 id */
     guestBooks.forEach(function (gb) {
       if (!gb || !gb.id) return;
       var ub = byId[gb.id];
-      if (!ub) { userBooks.push(gb); added++; return; }
+      if (!ub) { userBooks.push(gb); added++; newBookIds.push(gb.id); return; }
       var gStable = JSON.stringify({ t: gb.title, c: gb.content });
       var uStable = JSON.stringify({ t: ub.title, c: ub.content });
       if (gStable === uStable) { skipped++; return; }
@@ -3261,6 +3298,7 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
       fork.id = 'gb_' + Date.now().toString(36) + '_' + Math.floor(Math.random() * 1e6).toString(36);
       fork.title = String(gb.title || '無題') + '（訪客版本）';
       userBooks.push(fork); forked++;
+      forkMap[gb.id] = fork.id; newBookIds.push(fork.id);
     });
     var merged;
     if (Object.keys(userState).length === 0) {
@@ -3271,23 +3309,30 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
     }
     var wr = saveStateTo(ns, merged);
     if (!wr.ok) return { ok: false, error: 'state_write_failed' };
-    // notes 文件複製（ownerId 改掛 uid；guest 原檔不動）
-    var gi = loadNotesIndex('guest');
+    // notes 文件：只複製新進書的（ownerId 改掛 uid；分叉改掛新 id；guest 原檔不動）
     var bookDocs = [];
-    guestBooks.forEach(function (gb) {
-      if (!gb || !gb.id) return;
-      var gr = loadNotesBook('guest', gb.id);
+    newBookIds.forEach(function (bid) {
+      var srcId = bid;
+      Object.keys(forkMap).forEach(function (oldId) { if (forkMap[oldId] === bid) srcId = oldId; });
+      var gr = loadNotesBook('guest', srcId);
       if (gr.status === 'ok' && gr.doc) {
         var doc = JSON.parse(JSON.stringify(gr.doc));
         doc.ownerId = uid;
+        doc.bookId = bid;
         bookDocs.push(doc);
       }
     });
-    var idx = (gi.status === 'ok') ? JSON.parse(JSON.stringify(gi.index)) : emptyNotesIndex(ns);
-    idx.ownerId = uid;
-    idx.inbox = [];
-    idx.drafts = {};
-    if (bookDocs.length || gi.status === 'ok') {
+    // 索引：帳號已有索引→一個位元組都不動（index:null 只寫書文件）；帳號還沒有索引才用 guest 的當起點
+    var ui = loadNotesIndex(ns);
+    var idx = null;
+    if (ui.status !== 'ok') {
+      var gi = loadNotesIndex('guest');
+      idx = (gi.status === 'ok') ? JSON.parse(JSON.stringify(gi.index)) : emptyNotesIndex(ns);
+      idx.inbox = [];
+      idx.drafts = {};
+      idx.ownerId = uid;
+    }
+    if (bookDocs.length || idx) {
       var pr = persistAll(ns, { bookDocs: bookDocs, index: idx });
       if (!pr.ok) return { ok: false, error: 'notes_copy_failed' };
     }
@@ -3296,6 +3341,15 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
     return { ok: true, added: added, skipped: skipped, forked: forked };
   }
   function isMergeDone(uid) { return rawGet(mergeDoneKey(uid)) !== null; }
+  function setLastSyncAt(uid, iso) {
+    if (!uid) return { ok: false, error: 'no_uid' };
+    return safeSetItem(lastSyncKey(uid), JSON.stringify({ at: iso }), { scope: 'device', context: 'last_sync' });
+  }
+  function getLastSyncAt(uid) {
+    if (!uid) return null;
+    try { var v = JSON.parse(rawGet(lastSyncKey(uid)) || 'null'); return (v && v.at) ? v.at : null; }
+    catch (e) { return null; }
+  }
 
   /* ---------- namespace 控制（App 登入/登出時呼叫） ---------- */
   function getNs() { return currentNs; }
@@ -3381,6 +3435,7 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
     isNsBlocked: isNsBlocked, blockedReason: blockedReason,
     // 搬遷 / 合併
     migrateLegacyKeys: migrateLegacyKeys, mergeGuestIntoUser: mergeGuestIntoUser, isMergeDone: isMergeDone,
+    setLastSyncAt: setLastSyncAt, getLastSyncAt: getLastSyncAt,
     // notes v2
     loadNotesIndex: loadNotesIndex, loadNotesBook: loadNotesBook,
     contentFromBlocks: contentFromBlocks, persistAll: persistAll, recoverPendingTx: recoverPendingTx,
@@ -4056,8 +4111,9 @@ function renderShelf(){
   activeBooks().forEach((b,i)=>{
     const el=document.createElement("button");
     el.className="book"+(b.listed?" listed":"")+(b.loan?" out":"");
-    el.style.height=Math.min(95,52+b.words/28)+"%";
-    el.style.width=Math.min(30,13+b.words/90)+"px";
+    const _st=b.words<500?0:b.words<2000?1:b.words<8000?2:3,_SW=[14,18,22,26],_SH=[58,68,78,86]; /* B6：固定 4 級，不再連續縮放 */
+    el.style.height=_SH[_st]+"%";
+    el.style.width=_SW[_st]+"px";
     el.style.background="linear-gradient(90deg,"+b.color+","+b.color+"cc)";
     el.dataset.title=b.title;
     el.setAttribute("aria-label","打開《"+b.title+"》"+(b.loan?"（借出中）":b.listed?"（在舊雨書盒）":""));
@@ -4215,7 +4271,7 @@ $("#btn-enter").addEventListener("click",()=>{
   const uIn=lv.querySelector(".luser"), pIn=lv.querySelector(".lpass");
   const authed=document.createElement("div");
   authed.className="lauthed";
-  authed.innerHTML='<div class="lemail"></div><button type="button" class="lsync">同步到雲端</button><button type="button" class="lout">登出</button>';
+  authed.innerHTML='<div class="lemail"></div><div class="lsyncat"></div><button type="button" class="lsync">同步到雲端</button><button type="button" class="lout">登出</button>';
   lv.querySelector(".lpanel").appendChild(authed);
   const sv=$("#ov-sync");
   let curUser=null, initTried=false;
@@ -4253,9 +4309,45 @@ $("#btn-enter").addEventListener("click",()=>{
       if(typeof renderCaveBooks==="function")renderCaveBooks();
     }catch(e){ console.warn("refreshAllViews",e); }
   }
+  /* B5③：訪客區有書就問要不要搬——不限帳號為空；本次 session 拒絕過就不再煩 */
+  function maybeOfferGuestImport(uid){
+    if(!uid||RainyStore.isMergeDone(uid))return false;
+    try{ if(sessionStorage.getItem("rp_gi_skip_"+uid))return false; }catch(e){}
+    const g=RainyStore.loadNamespaced("guest");
+    const gb=(g.status==="ok"&&g.data&&Array.isArray(g.data.books))?g.data.books:[];
+    if(!gb.length)return false;
+    openSyncPanel("guest_import");
+    return true;
+  }
+  /* 退回訪客區的共用核心：登出與「先用訪客身分／過期登入善後」都走這裡，不再各寫一次（三審裁決）。
+     順序固定：草稿先沖進「它現在所屬的」namespace（saver 建立時就綁定 ns，不會寫錯邊）→ 清身分 →
+     setNs → guest 不存在或被鎖一律換空預設（帳號資料絕不留在訪客畫面、絕不寫進 guest）→ swapState → 重繪。
+     整段同步、沒有 await：setNs 與 swapState 之間不存在被打斷的機會。
+     nsLock 由呼叫方管理（enterUserNamespace 已持鎖；登出自己包 try/finally；訪客鈕是同步段）。 */
+  function switchToGuestNs(){
+    if(window.RainyDraft)RainyDraft.flush();
+    curUser=null; /* 身分一併退回訪客，徽章與面板才不會殘留帳號 */
+    RainyStore.setNs("guest");
+    const g=RainyStore.loadNamespaced("guest");
+    swapState((g.status==="ok"||g.status==="empty")?(g.data||{}):{});
+    refreshAllViews();
+  }
+  /* 三審裁決：「先用訪客身分」按鈕與過期登入的善後——撤 pending 重整、切回訪客區、收面板。可重入 */
+  function revertToGuestNs(){
+    try{
+      if(window.__rpPendingReload){ clearTimeout(window.__rpPendingReload); window.__rpPendingReload=null; }
+      switchToGuestNs();
+      closeAll(); /* 撤銷途中可能已被這一輪打開的面板（conflict 等） */
+    }catch(e){}
+  }
   async function enterUserNamespace(user,opts){
     opts=opts||{};
     const uid=user.id, ns="user_"+uid;
+    /* 三審裁決：自動登入帶進來的這一輪（opts.gen），每個 await 醒來都要重對代際——
+       等待期間你選了「先用訪客身分」的話，之後的切帳號／寫空狀態／開面板全都不許再做，
+       已經切過去的也要切回訪客區 */
+    const gen0=(typeof opts.gen==="number")?opts.gen:null;
+    const stale=function(){ return gen0!==null&&window.__rpAuthGen!==gen0; };
     if(window.RainyDraft)RainyDraft.flush();
     RainyStore.lockNs();
     /* try/finally：任何例外都不能讓 nsLock 卡在 true，否則之後所有 save() 被悄悄丟掉 */
@@ -4268,32 +4360,29 @@ $("#btn-enter").addEventListener("click",()=>{
         RainyStore.unlockNs();
         refreshAllViews();
         const st=await afterLogin(opts.silent);
-        /* 帳號側還是空的、訪客有料、沒搬過 → 每次登入都再問一次（拒絕不寫標記） */
-        if(lr.status==="empty"&&(st==="empty"||!st)){
-          const g=RainyStore.loadNamespaced("guest");
-          const guestHas=g.status==="ok"&&Object.keys(g.data||{}).length>0;
-          if(guestHas&&!RainyStore.isMergeDone(uid)){ openSyncPanel("guest_import"); return; }
-        }
+        if(stale()){ revertToGuestNs(); return; } /* 等待期間你選了訪客：這一輪登入作廢，切回訪客區 */
+        /* 訪客有書、沒搬過、本次沒拒絕 → 登入當下就問（不限帳號為空；別的面板已開時讓位） */
+        if(st!=="cloud_applied"&&!sv.classList.contains("on")) maybeOfferGuestImport(uid);
         return;
       }
       if(lr.status==="missing"){
         RainyStore.setNs(ns); // adapter 自此指向 user namespace（目前為空）
         const r=await RainySync.loadUserState();
+        if(stale()){ revertToGuestNs(); return; } /* 等待期間你選了訪客：不寫空狀態、不開面板、切回訪客區 */
         if(!r.ok){ RainyStore.unlockNs(); toast(r.error.message||"讀取雲端失敗"); closeAll(); return; }
         if(r.status==="cloud_applied"){
           const lr2=RainyStore.loadNamespaced(ns);
           if(lr2.status==="ok"||lr2.status==="empty")swapState(lr2.data||{});
           RainyStore.unlockNs(); refreshAllViews();
           toast("在雲端找到你的雨天，回復好了");
+          if(maybeOfferGuestImport(uid)) return; /* 雲端回復完，訪客區有書也要問 */
           closeAll(); return;
         }
         if(r.status==="empty"){
           RainyStore.saveStateTo(ns,{}); // 建立空的 user namespace（之後狀態為 empty 而非 missing）
           swapState({});
           RainyStore.unlockNs(); refreshAllViews();
-          const g=RainyStore.loadNamespaced("guest");
-          const guestHas=g.status==="ok"&&Object.keys(g.data||{}).length>0;
-          if(guestHas&&!RainyStore.isMergeDone(uid)){ openSyncPanel("guest_import"); return; }
+          if(maybeOfferGuestImport(uid)) return;
           closeAll(); return;
         }
         RainyStore.unlockNs();
@@ -4317,10 +4406,19 @@ $("#btn-enter").addEventListener("click",()=>{
     curUser=r.user; return r;
   }
   function refreshAuthView(){
+    const who=$("#btn-whoami");
     if(curUser){
       lv.classList.add("authed");
       authed.querySelector(".lemail").textContent=curUser.email||"已登入";
-    }else lv.classList.remove("authed");
+      if(state&&"lastSyncAt"in state)delete state.lastSyncAt; /* C6 修正：同步時間不進同步狀態，舊資料順手清 */
+      const _ls=RainyStore.getLastSyncAt(curUser.id);
+      const at=_ls?new Date(_ls):null;
+      authed.querySelector(".lsyncat").textContent=at?("上次同步 "+at.toLocaleString("zh-TW",{hour12:false})):"這台裝置還沒上傳過雲端";
+      if(who){const nm=(curUser.email||"帳號").split("@")[0];who.textContent="☂ "+(nm.length>8?nm.slice(0,8)+"…":nm);}
+    }else{
+      lv.classList.remove("authed");
+      if(who)who.textContent="☂ 訪客";
+    }
   }
   function openAuth(m){
     ttl.textContent=m; go.textContent=m;
@@ -4331,13 +4429,18 @@ $("#btn-enter").addEventListener("click",()=>{
   }
   $("#btn-login").addEventListener("click",()=>openAuth("登入"));
   $("#btn-signup").addEventListener("click",()=>openAuth("建立帳號"));
+  $("#btn-whoami").addEventListener("click",()=>openAuth("登入")); /* B5②：身分徽章就是固定出入口 */
   lv.querySelector(".lback").addEventListener("click",()=>lv.classList.remove("on"));
   tg.addEventListener("click",()=>openAuth(lv.dataset.mode==="登入"?"建立帳號":"登入"));
   lv.querySelector(".lguest").addEventListener("click",()=>{ lv.classList.remove("on"); $("#btn-enter").click(); });
 
   function openSyncPanel(kind){
     const msg=sv.querySelector(".smsg"), b1=sv.querySelector(".s1"), b2=sv.querySelector(".s2");
-    if(kind==="local_only"){
+    sv.querySelector(".s3").textContent=(kind==="auth_stuck")?"繼續等":"先不決定";
+    if(kind==="auth_stuck"){
+      msg.textContent="雲端還沒確認你的身分（網路好像有點慢）。為了不把字寫進錯的地方，寫作先暫停——你可以再試一次，或先用訪客身分逛。";
+      b1.textContent="再試一次"; b2.textContent="先用訪客身分"; b2.style.display="";
+    }else if(kind==="local_only"){
       msg.textContent="這台裝置有一份雨天，雲端還是空的。要上傳保管嗎？";
       b1.textContent="上傳到雲端"; b2.style.display="none";
     }else if(kind==="guest_import"){
@@ -4351,11 +4454,15 @@ $("#btn-enter").addEventListener("click",()=>{
   }
   function closeAll(){ sv.classList.remove("on"); lv.classList.remove("on"); refreshAuthView(); }
   sv.querySelector(".s1").addEventListener("click",async()=>{
+    if(sv.dataset.kind==="auth_stuck"){
+      closeAll(); window.__rpAuthStuck=false; attemptAutoLogin(); /* 再試一次：重新確認，閘門維持到確認完 */
+      return;
+    }
     if(sv.dataset.kind==="guest_import"){
       const uid=curUser&&curUser.id;
       if(!uid){ closeAll(); return; }
       const g=RainyStore.loadNamespaced("guest");
-      const mr=RainyStore.mergeGuestIntoUser(uid, g.data||{}, {});
+      const mr=RainyStore.mergeGuestIntoUser(uid, g.data||{}, null); /* null＝函式自己載入帳號現況，A1：絕不拿空物件蓋掉帳號 */
       if(!mr.ok){ toast("搬遷失敗，兩份資料都還在原處"); return; }
       const lr=RainyStore.loadNamespaced("user_"+uid);
       if(lr.status==="ok"||lr.status==="empty")swapState(lr.data||{});
@@ -4366,7 +4473,8 @@ $("#btn-enter").addEventListener("click",()=>{
     }
     if(sv.dataset.kind==="local_only"){
       const r=await RainySync.saveUserState();
-      toast(r.ok?"已上傳到雲端，雨天有人保管了":("上傳失敗："+r.error.message));
+      if(r.ok){ const _iso=r.updatedAt||new Date().toISOString(); RainyStore.setLastSyncAt(curUser&&curUser.id,_iso); toast("已上傳到雲端，雨天有人保管了（"+new Date(_iso).toLocaleTimeString("zh-TW",{hour12:false})+"）"); }
+      else toast("上傳失敗："+r.error.message);
       closeAll();
     }else{
       const r=await RainySync.resolveConflict("cloud");
@@ -4375,13 +4483,28 @@ $("#btn-enter").addEventListener("click",()=>{
     }
   });
   sv.querySelector(".s2").addEventListener("click",async()=>{
-    if(sv.dataset.kind==="guest_import"){
+    if(sv.dataset.kind==="auth_stuck"){
+      window.__rpSkipAutoLogin=true;      /* 這次打開不再靜默切帳號（下次重整會再試） */
+      window.__rpAuthGen++;               /* 作廢在途的那一輪登入，它晚點回來也不許切 */
+      curUser=null;                       /* 三審裁決：競態下在途登入可能已寫過 curUser，選訪客就清乾淨 */
+      if(window.__rpPendingReload){ clearTimeout(window.__rpPendingReload); window.__rpPendingReload=null; } /* 在途的「回復後重整」一併撤回 */
+      if(RainyStore.getNs()!=="guest")revertToGuestNs(); /* 在途登入若已同步前段切進帳號區：選訪客的當下就切回來，不等它醒 */
+      window.__rpAuthSettling=false;
+      window.__rpAuthStuck=false;
       closeAll();
-      toast("訪客那份留在原處，之後登入還會再問你");
+      toast("先用訪客身分；現在寫的會留在訪客區，下次打開可以再搬進帳號");
+      return;
+    }
+    if(sv.dataset.kind==="guest_import"){
+      const uid=curUser&&curUser.id;
+      if(uid){ try{sessionStorage.setItem("rp_gi_skip_"+uid,"1")}catch(e){} }
+      closeAll();
+      toast("訪客那份留在原處，下次打開還會再問你");
       return;
     }
     const r=await RainySync.resolveConflict("local");
-    toast(r.ok?"已用這台裝置的雨天覆蓋雲端":("失敗："+r.error.message));
+    if(r.ok){ const _iso=r.updatedAt||new Date().toISOString(); RainyStore.setLastSyncAt(curUser&&curUser.id,_iso); toast("已用這台裝置的雨天覆蓋雲端（"+new Date(_iso).toLocaleTimeString("zh-TW",{hour12:false})+"）"); }
+    else toast("失敗："+r.error.message);
     closeAll();
   });
   sv.querySelector(".s3").addEventListener("click",closeAll);
@@ -4389,7 +4512,7 @@ $("#btn-enter").addEventListener("click",()=>{
   async function afterLogin(silent){
     const r=await RainySync.loadUserState();
     if(!r.ok){ toast(r.error.message||"讀取雲端失敗"); closeAll(); return null; }
-    if(r.status==="cloud_applied"){ toast("在雲端找到你的雨天，正在回復…"); setTimeout(()=>location.reload(),900); return r.status; }
+    if(r.status==="cloud_applied"){ toast("在雲端找到你的雨天，正在回復…"); window.__rpPendingReload=setTimeout(()=>location.reload(),900); return r.status; } /* 計時掛全域：你在 900ms 內改選訪客時要能撤掉這次重整 */
     if(r.status==="in_sync"){ if(!silent)toast("本機與雲端是同一份雨天"); closeAll(); return r.status; }
     if(r.status==="local_only"){ if(silent){ closeAll(); return r.status; } openSyncPanel("local_only"); return r.status; }
     if(r.status==="conflict"){ openSyncPanel("conflict"); return r.status; }
@@ -4442,32 +4565,60 @@ $("#btn-enter").addEventListener("click",()=>{
 
   authed.querySelector(".lsync").addEventListener("click",async()=>{
     const r=await RainySync.saveUserState();
-    toast(r.ok?"已同步到雲端 ✓":("同步失敗："+r.error.message));
+    if(r.ok){ const _iso=r.updatedAt||new Date().toISOString(); RainyStore.setLastSyncAt(curUser&&curUser.id,_iso); toast("已同步到雲端 ✓ "+new Date(_iso).toLocaleTimeString("zh-TW",{hour12:false})); }
+    else toast("同步失敗："+r.error.message);
+    refreshAuthView();
   });
   authed.querySelector(".lout").addEventListener("click",async()=>{
-    if(window.RainyDraft)RainyDraft.flush();
-    await RainySync.signOut();
-    curUser=null;
+    await RainySync.signOut(); /* 草稿由 switchToGuestNs 統一先沖：登出不改 ns，沖的一樣是帳號那邊 */
     RainyStore.lockNs();
     try{
-      RainyStore.setNs("guest");
-      const g=RainyStore.loadNamespaced("guest");
-      if(g.status==="ok"||g.status==="empty")swapState(g.data||{});
-      else swapState({}); /* missing 或被鎖也要換空預設：帳號資料絕不留在訪客畫面、絕不寫進 guest */
-      refreshAllViews();
+      switchToGuestNs(); /* 與「先用訪客身分」共用同一套：草稿先沖、空預設、同步段不中斷 */
       refreshAuthView();
       toast("登出了，回到訪客的雨天（帳號那份留在這台裝置上）");
     }finally{ RainyStore.unlockNs(); }
   });
 
   /* 開機：有 session 就切進該帳號的 namespace（整段 script 解析完後才跑） */
-  ensureSync().then(function(r){
-    if(r&&r.ok&&r.user){
-      curUser=r.user;
-      enterUserNamespace(curUser,{silent:true});
-    }
-    refreshAuthView();
-  });
+  /* B5①＋三審裁決：超時≠確認。閘門只有兩條路解除——真的確認完（有無 session 都算確認），
+     或你在卡住提示裡明確選「先用訪客身分」。絕不自動放行。 */
+  window.__rpAuthGen=0;
+  function showAuthStuck(){
+    if(window.__rpAuthStuck)return;
+    window.__rpAuthStuck=true;
+    openSyncPanel("auth_stuck");
+  }
+  async function attemptAutoLogin(){
+    const gen=++window.__rpAuthGen;
+    window.__rpAuthStuck=false;
+    /* B5①：本機留著 auth-token 代表開機可能自動登入，身分塵埃落定前先插上旗子 */
+    let hasToken=false;
+    try{ hasToken=Object.keys(localStorage).some(function(k){return /-auth-token$/.test(k)}); }catch(e){}
+    window.__rpAuthSettling=hasToken;
+    const SETTLE_MS=window.__rpAuthSettleMs||12000; /* __rpAuthSettleMs 是測試掛鉤；正式固定 12 秒 */
+    const settleTimer=setTimeout(function(){ if(hasToken&&window.__rpAuthSettling&&gen===window.__rpAuthGen)showAuthStuck(); },SETTLE_MS);
+    try{
+      const r=await ensureSync(); /* 無 token 也照跑：初始化 client 是開機必要副作用，不能省 */
+      if(gen!==window.__rpAuthGen)return; /* 已選訪客或已重試：這一輪結果作廢，不許半途切帳號 */
+      if(r&&r.ok&&r.user){
+        if(window.__rpSkipAutoLogin){ window.__rpAuthSettling=false; return; }
+        if(sv.dataset.kind==="auth_stuck")sv.classList.remove("on");
+        try{ curUser=r.user; await enterUserNamespace(curUser,{silent:true,gen:gen}); }
+        catch(e){ showAuthStuck(); return; }
+        if(gen!==window.__rpAuthGen){ curUser=null; refreshAuthView(); return; } /* 等待期間你選了訪客：這一輪登入全盤作廢 */
+        window.__rpAuthSettling=false;
+      }else if(r&&r.ok){
+        /* getSession 失敗也會解析成 user:null；面板已亮就不偷偷放，交給你選 */
+        if(!window.__rpAuthStuck)window.__rpAuthSettling=false;
+      }else if(hasToken){
+        showAuthStuck(); /* 有 session 材料卻確認不了＝還不知道你是誰：維持鎖定，等你選 */
+      }else{
+        window.__rpAuthSettling=false; /* 本來就沒有 session 材料：訪客是確定的，直接放行 */
+      }
+      refreshAuthView();
+    }finally{ clearTimeout(settleTimer); }
+  }
+  attemptAutoLogin();
 })();
 
 /* ================= 寫作 ================= */
@@ -4522,6 +4673,11 @@ addEventListener("pagehide",()=>{if(draftSaver)draftSaver.flush()});
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden"&&draftSaver)draftSaver.flush()});
 
 $("#btn-write").addEventListener("click",()=>{
+  if(window.__rpAuthSettling){ /* B5①：自動登入沒跑完前不給寫，避免寫進錯的身分；已卡住就把選擇面板再亮起來 */
+    if(window.__rpAuthStuck)openSyncPanel("auth_stuck");
+    else toast("正在確認你的身分，一下就好…");
+    return;
+  }
   editingId=null;editFromShelf=false;bindBtn.textContent="裝訂成書";
   const d=RainyStore.loadDraft(RainyStore.getNs(),DRAFT_KEY);
   if(d&&(d.content||d.title)&&!ta.value){
@@ -4628,6 +4784,7 @@ document.querySelectorAll('input[name="bindvis"]').forEach(r=>r.addEventListener
   if(priv){$("#bind-anno").checked=false;$("#bind-reply").checked=false}
   $("#bind-penrow").hidden=v!=="public";
   if(v==="public")$("#bind-penname").value=state.defaultPenName||"";
+  syncDestSummary();
 }));
 /* ---- 復原／重做：誤刪整篇也拿得回來 ---- */
 const undoStack=[],redoStack=[];
@@ -4694,7 +4851,21 @@ function renderBookReader(book,textOverride){
   btn.onclick=()=>toc.hidden=!toc.hidden;
   search.oninput=()=>{const term=search.value.trim().toLowerCase();if(!term){result.textContent="";return}const count=src.toLowerCase().split(term).length-1;result.textContent=count?`本書找到 ${count} 個位置`:"本書找不到這個詞。"};
 }
-$("#btn-format-help").onclick=()=>{const x=$("#format-help");x.hidden=!x.hidden};
+/* C9：格式小抄與放置選項手風琴互斥——按一個，另一個收回 */
+function syncDestSummary(){
+  const v=(document.querySelector('input[name="bindvis"]:checked')||{}).value||"private";
+  const map={private:"我的書架（私人）",room:"帶到客廳",public:"投稿到公共星軌"};
+  const s=$("#dest-summary");if(s)s.textContent=map[v]||map.private;
+}
+function setWriteSection(open){
+  const x=$("#format-help"),body=$("#bind-opts-body"),tg=$("#btn-dest-toggle");
+  if(open==="fmt"){x.hidden=false;if(body)body.hidden=true}
+  else{x.hidden=true;if(body)body.hidden=false}
+  if(tg)tg.setAttribute("aria-expanded",String(!(body&&body.hidden)));
+}
+$("#btn-format-help").onclick=()=>{const x=$("#format-help");setWriteSection(x.hidden?"fmt":"dest")};
+$("#btn-dest-toggle").onclick=()=>{const body=$("#bind-opts-body");setWriteSection(body&&body.hidden?"dest":"fmt")};
+syncDestSummary();
 let readingId=null;
 function openRead(id){
   const b=state.books.find(x=>x.id===id);if(!b)return;

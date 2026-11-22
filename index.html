@@ -201,8 +201,8 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
   color:rgba(232,224,210,.28);font-size:12px;letter-spacing:.2em;pointer-events:none;
 }
 .book{
-  width:14px;min-width:14px;border-radius:2px 2px 0 0;
-  position:relative;flex-shrink:0;
+  width:14px;min-width:8px;border-radius:2px 2px 0 0;
+  position:relative;flex-shrink:1;
   transition:transform .18s ease-out;
   box-shadow:inset -2px 0 0 rgba(0,0,0,.3);
 }
@@ -211,6 +211,7 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
   content:attr(data-title);position:absolute;inset:4px 2px;
   writing-mode:vertical-rl;font-size:9px;letter-spacing:1px;
   color:rgba(255,250,240,.85);overflow:hidden;text-align:center;
+  white-space:nowrap;text-overflow:ellipsis;
   font-family:var(--book-font);user-select:none;
 }
 
@@ -996,7 +997,7 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
 
 /* ---- 舊雨書盒（窗下牆上的對外小書盒） ---- */
 .lib-shelf{
-  position:absolute;left:8%;top:67.5%;width:21%;height:8.5%;z-index:5;
+  position:absolute;left:8%;top:67.5%;width:21%;height:8.5%;z-index:7; /* B8：書桌 z6 會蓋住牌子右緣，抬高一層讓「舊雨書盒」四字完整 */
   transition:transform .2s ease-out;
 }
 .lib-shelf:hover,.lib-shelf:focus-visible{transform:translateY(-2px)}
@@ -1115,6 +1116,20 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
 .hud-btn:hover{background:rgba(247,168,59,.12);border-color:rgba(247,168,59,.5)}
 .hud-btn:active{transform:scale(.97)}
 .hud-btn[aria-pressed="true"]{border-color:var(--lamp);background:rgba(247,168,59,.16)}
+/* ---- B8：徽章截斷＋手機收摺選單 ---- */
+#btn-whoami{max-width:112px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#hud-more{
+  position:absolute;top:calc(100% + 6px);right:10px;z-index:30;
+  display:none;flex-direction:column;gap:8px;padding:10px;min-width:172px;
+  background:rgba(16,20,29,.96);border:1px solid rgba(232,224,210,.22);border-radius:12px;
+  box-shadow:0 10px 30px rgba(0,0,0,.55);pointer-events:auto;
+}
+#hud-more.on{display:flex}
+#hud-more .hud-btn{width:100%;text-align:left}
+/* B8：HUD 永遠住窄欄（手機全寬或桌面 430px 框），所以緊縮規則直接放全域——
+   藏英文副標（它比中文店名寬，是把按鈕擠下樓的元兇之一） */
+.hud{gap:6px;padding:calc(8px + env(safe-area-inset-top)) 10px 8px}
+.hud .brand small{display:none}
 .drops{
   display:flex;align-items:center;gap:6px;min-height:44px;padding:6px 12px;
   border:1px solid rgba(127,167,201,.35);border-radius:999px;
@@ -1331,6 +1346,7 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
   .lantern{left:7%;top:20.5%;width:42%}
   .hud .brand{font-size:15px;letter-spacing:.18em}
   .hud-btn{padding:10px 12px;font-size:13px}
+  #btn-whoami{max-width:96px}
   .puddle{top:88%}
   .door{left:3.5%;top:56%;width:13%;height:19.5%}
   .xmas-tree{left:45%;top:auto;bottom:12%;width:13%}
@@ -1350,6 +1366,14 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
   .bb-panel{height:min(42vh,330px)}
   .rv-hint{display:none}
   .season-tag{display:none}
+}
+/* B8：320 小螢幕——窗框上緣在 y≈97，HUD 必須一排收在 89px 內，全部縮一號 */
+@media (max-width:340px){
+  .hud{gap:4px;padding:calc(8px + env(safe-area-inset-top)) 8px 8px}
+  .hud .brand{font-size:12px;letter-spacing:.12em}
+  .hud .hud-btn{padding:8px;font-size:11px;min-width:44px}
+  .hud .drops{padding:6px 8px;font-size:12px}
+  #btn-whoami{max-width:82px}
 }
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important}
@@ -2179,6 +2203,8 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible{
   <button class="hud-btn" id="btn-sound" aria-pressed="false" aria-label="雨聲開關">雨聲 關</button>
   <button class="hud-btn" id="btn-help" aria-label="玩法說明">?</button>
   <button class="hud-btn" id="btn-whoami" aria-label="帳號、同步與登出入">☂ 訪客</button>
+  <button class="hud-btn" id="btn-more" aria-label="更多功能" aria-expanded="false">⋯</button>
+  <div id="hud-more" role="menu" aria-label="更多功能"></div>
 </header>
 <div class="season-tag" id="season-tag">窗外 · 夏季雷雨</div>
 
@@ -4111,9 +4137,17 @@ function renderShelf(){
   activeBooks().forEach((b,i)=>{
     const el=document.createElement("button");
     el.className="book"+(b.listed?" listed":"")+(b.loan?" out":"");
-    const _st=b.words<500?0:b.words<2000?1:b.words<8000?2:3,_SW=[14,18,22,26],_SH=[58,68,78,86]; /* B6：固定 4 級，不再連續縮放 */
-    el.style.height=_SH[_st]+"%";
-    el.style.width=_SW[_st]+"px";
+    /* 厚度（寬）仍按字數 4 級——寫得越多書越厚（B6）；
+       高矮胖瘦改由書目本身的穩定變體決定（B7）：依書 id 取雜湊分 3 型——矮胖／標準／瘦高，
+       同一本書永遠長同一個樣子，整架不再全班同尺寸。
+       B7b：寬度表整體調小（最壞情況＝同列三本最厚 24px×3＋間隙 3px×2＝78px，
+       仍小於 360px 手機的列內淨寬 81.6px）；flex-shrink:1 只作保險，
+       桌面窄欄或單列書爆多時才等比縮，不影響手機正常使用下的穩定尺寸 */
+    const _st=b.words<500?0:b.words<2000?1:b.words<8000?2:3,_SW=[13,16,19,22];
+    const _ids=String(b.id||b.title||"");let _h=0;for(let _i=0;_i<_ids.length;_i++)_h=(_h*31+_ids.charCodeAt(_i))>>>0;
+    const _vt=_h%3,_VH=[58,72,88],_VW=[2,0,-2];
+    el.style.height=_VH[_vt]+"%";
+    el.style.width=(_SW[_st]+_VW[_vt])+"px";
     el.style.background="linear-gradient(90deg,"+b.color+","+b.color+"cc)";
     el.dataset.title=b.title;
     el.setAttribute("aria-label","打開《"+b.title+"》"+(b.loan?"（借出中）":b.listed?"（在舊雨書盒）":""));
@@ -6090,6 +6124,41 @@ function libSettle(){
 function renderDrops(){$("#drops-count").textContent=state.drops}
 $("#btn-sound").addEventListener("click",toggleSound);
 $("#btn-help").addEventListener("click",()=>openOv("ov-help"));
+/* ---- B8：手機 HUD 收摺（⋯ 選單）——只搬按鈕位置與切換顯示，功能與事件原封不動 ---- */
+(function(){
+  const hud=document.querySelector(".hud"),more=$("#btn-more"),panel=$("#hud-more"),whoami=$("#btn-whoami");
+  if(!hud||!more||!panel||!whoami)return;
+  const IDS=["btn-season","btn-festival","btn-friend","btn-sound","btn-help"];
+  /* B8：看的是 body 欄實寬，不是視窗寬——桌面 430px 框也要收摺（桌機視窗 1280 但 HUD 只有 ~423px） */
+  function narrow(){return document.body.getBoundingClientRect().width<=760;}
+  function place(){
+    if(narrow()){
+      IDS.forEach(id=>{const el=document.getElementById(id);if(el&&el.parentElement!==panel)panel.appendChild(el);});
+    }else{
+      panel.classList.remove("on");more.setAttribute("aria-expanded","false");
+      IDS.forEach(id=>{const el=document.getElementById(id);if(el&&el.parentElement!==hud)hud.insertBefore(el,whoami);});
+    }
+    more.style.display=narrow()?"":"none";
+  }
+  more.addEventListener("click",e=>{
+    e.stopPropagation();
+    const on=panel.classList.toggle("on");
+    more.setAttribute("aria-expanded",on?"true":"false");
+  });
+  panel.addEventListener("click",e=>{
+    if(e.target.closest(".hud-btn")){panel.classList.remove("on");more.setAttribute("aria-expanded","false");}
+  });
+  document.addEventListener("click",e=>{
+    if(!e.target.closest("#hud-more")&&!e.target.closest("#btn-more")&&panel.classList.contains("on")){
+      panel.classList.remove("on");more.setAttribute("aria-expanded","false");
+    }
+  });
+  document.addEventListener("keydown",e=>{
+    if(e.key==="Escape"&&panel.classList.contains("on")){panel.classList.remove("on");more.setAttribute("aria-expanded","false");}
+  });
+  window.addEventListener("resize",place);
+  place();
+})();
 
 /* ================= 啟動 ================= */
 /* v110 遷移：小暖爐與小壁爐從客廳搬到臥室 */
